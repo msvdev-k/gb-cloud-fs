@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+
+<VBox alignment="CENTER" spacing="1.0" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="org.msv.fm.MainController">
+
+    <padding>
+        <Insets left="2.0" right="2.0"/>
+    </padding>
+
+    <MenuBar>
+        <Menu text="Файл">
+            <MenuItem text="Выход" onAction="#btmExitAction"/>
+        </Menu>
+    </MenuBar>
+
+
+    <HBox VBox.vgrow="ALWAYS">
+        <fx:include fx:id="filesTable" source="file-panel.fxml" HBox.hgrow="ALWAYS"/>
+        <fx:include fx:id="filesTableServer" source="server-file-panel.fxml" HBox.hgrow="ALWAYS"/>
+    </HBox>
+
+
+    <HBox spacing="5.0">
+        <Button maxWidth="Infinity" focusTraversable="false" text="Копировать файл" HBox.hgrow="ALWAYS"
+                onAction="#copyBtnAction"/>
+        <Button maxWidth="Infinity" focusTraversable="false" text="Переместить файл" HBox.hgrow="ALWAYS"/>
+        <Button maxWidth="Infinity" focusTraversable="false" text="Удалить файл" HBox.hgrow="ALWAYS"/>
+        <Button maxWidth="Infinity" focusTraversable="false" text="Выход из программы" HBox.hgrow="ALWAYS"
+                onAction="#btmExitAction"/>
+
+        <padding>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0"/>
+        </padding>
+
+    </HBox>
+
+
+</VBox>
+

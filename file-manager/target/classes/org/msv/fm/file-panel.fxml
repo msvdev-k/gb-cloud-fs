@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.TableView?>
@@ -23,7 +22,9 @@
 
 
     <properties>
-        <ctrl><fx:reference source="controller"/></ctrl>
+        <ctrl>
+            <fx:reference source="controller"/>
+        </ctrl>
     </properties>
 
 </VBox>

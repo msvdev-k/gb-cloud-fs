@@ -46,6 +46,25 @@ public interface FileSystemTerminalOutput {
 
 
     /**
+     * Скопировать файл из локальной файловой системы в файловую систему терминала
+     * @param token токен сессии
+     * @param sourcePath полный путь к файлу локальной файловой системы (источник)
+     * @param destinationPath путь к файлу в файловой системе терминала (приёмник)
+     */
+    void put(FileSystemTerminalToken token, String sourcePath, String destinationPath);
+
+
+    /**
+     * Скопировать файл из файловой системы терминала на локальную файловую систему
+     * @param token токен сессии
+     * @param sourcePath путь к файлу в файловой системе терминала (источник)
+     * @param destinationPath полный путь к файлу локальной файловой системы (приёмник)
+     * @param destinationTerminal терминал в который производится копирование файла
+     */
+    void get(FileSystemTerminalToken token, String sourcePath, String destinationPath, FileSystemTerminalInput destinationTerminal);
+
+
+    /**
      * Получить текущую корневую директорию
      *
      * @param token токен сессии

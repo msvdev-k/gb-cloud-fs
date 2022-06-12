@@ -232,6 +232,14 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
 
     }
 
+    /**
+     * Текущай файловый терминал
+     * @return
+     */
+    public FileSystemTerminalOutput getTerminal() {
+        return terminal;
+    }
+
 
     /**
      * Обновить список файлов
@@ -245,6 +253,21 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
             filesTable.getItems().clear();
             filesTable.getItems().addAll(fileInfoList);
             filesTable.sort();
+        }
+    }
+
+
+    /**
+     * В терминал добавлен файл
+     *
+     * @param path путь к добавленному файлу
+     */
+    @Override
+    public void addFile(Path path) {
+        if (path.startsWith(currentPath) &&
+            path.getNameCount()-1 == currentPath.getNameCount()) {
+            // Файл добавлен к текущему каталогу, обновляем список файлов
+            terminal.ls(token, currentPath.toString());
         }
     }
 
@@ -271,4 +294,28 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
         Alert alert = new Alert(Alert.AlertType.INFORMATION, infoMessage, ButtonType.OK);
         alert.showAndWait();
     }
+
+
+    /**
+     * Скопировать файл в текущую директорию терминала
+     * @param src Путь к копируемому файлу на локальной файловой системе
+     */
+    public void copy(Path src) {
+        terminal.put(token, src.toString(), src.getFileName().toString());
+    }
+
+
+    /**
+     * Скопировать файл в текущую директорию терминала
+     * @param dist Контроллер локальной файловой системы в который производится копирование файла
+     */
+    public void copyTo(FilePanelController dist) {
+        String fileName = this.filesTable.getSelectionModel().getSelectedItem().getName();
+        Path distFileName = dist.getCurrentPath().resolve(fileName);
+
+        terminal.get(token, fileName, distFileName.toString(), dist);
+    }
+
+
+
 }

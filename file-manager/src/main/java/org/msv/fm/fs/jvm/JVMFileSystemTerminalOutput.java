@@ -148,6 +148,53 @@ public class JVMFileSystemTerminalOutput implements FileSystemTerminalOutput {
 
 
     /**
+     * Скопировать файл из локальной файловой системы в файловую систему терминала.
+     *
+     * @param token           токен сессии
+     * @param sourcePath      полный путь к файлу локальной файловой системы (источник)
+     * @param destinationPath путь к файлу в файловой системе терминала (приёмник)
+     */
+    @Override
+    public void put(FileSystemTerminalToken token, String sourcePath, String destinationPath) {
+
+        if (!sessions.containsKey(token)) {
+            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+        }
+
+        Session session = sessions.get(token);
+
+        Path distPath = Path.of(destinationPath).normalize();
+
+        if (distPath.getRoot() == null) {
+            distPath = session.currentDir.resolve(distPath).normalize();
+        }
+
+        if (distPath.startsWith(session.root) &&
+                !Files.isDirectory(distPath) &&
+                !Files.exists(distPath)) {
+
+            try {
+                Files.copy(Path.of(sourcePath), distPath);
+                session.output.addFile(distPath);
+
+            } catch (IOException e) {
+                session.output.error("Ошибка копирования файла");
+            }
+
+        }
+        else {
+            session.output.error("Некорректный путь к файлу");
+        }
+    }
+
+
+    @Override
+    public void get(FileSystemTerminalToken token, String sourcePath, String destinationPath, FileSystemTerminalInput destinationTerminal) {
+       throw new RuntimeException("Метод JVMFileSystemTerminalOutput::get не реализован");
+    }
+
+
+    /**
      * Получить текущую корневую директорию
      *
      * @param token токен сессии

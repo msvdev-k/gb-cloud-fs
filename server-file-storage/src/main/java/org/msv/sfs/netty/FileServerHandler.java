@@ -97,6 +97,63 @@ public class FileServerHandler extends SimpleChannelInboundHandler<ServerMessage
 
             }
 
+        // === FileDataMessage ===
+
+        } else if (serverMessage instanceof FileDataMessage message) {
+            String token = message.getToken();
+
+            log.debug("FileDataMessage with token: " + token);
+            log.debug("FileDataMessage with path: " + message.getPath());
+
+            if (!sessions.containsKey(token)) return;
+
+            Session session = sessions.get(token);
+            Path fileName = session.currentDir.resolve(message.getPath()).normalize();
+
+            if (fileName.startsWith(rootDir) &&
+                    !Files.isDirectory(fileName) &&
+                    !Files.exists(fileName)) {
+
+                Files.write(fileName, message.getData());
+
+                String path = "";
+                if (rootDir.getNameCount() < fileName.getNameCount()) {
+                    path = fileName.subpath(rootDir.getNameCount(), fileName.getNameCount()).toString();
+                }
+
+                log.debug("Send to user path: " + path + " and token: " + message.getToken());
+
+                ctx.writeAndFlush(new AddFileRequest(message.getToken(), path));
+            }
+
+        // === GetRemoteFileMessage ===
+
+        } else if (serverMessage instanceof GetRemoteFileMessage message) {
+            String token = message.getToken();
+
+            log.debug("GetRemoteFileMessage with token: " + token);
+            log.debug("GetRemoteFileMessage with path: " + message.getPath());
+
+            if (!sessions.containsKey(token)) return;
+
+            Session session = sessions.get(token);
+            Path fileName = session.currentDir.resolve(message.getPath()).normalize();
+
+            if (fileName.startsWith(rootDir) &&
+                    !Files.isDirectory(fileName) &&
+                    Files.exists(fileName)) {
+
+                String path = "";
+                if (rootDir.getNameCount() < fileName.getNameCount()) {
+                    path = fileName.subpath(rootDir.getNameCount(), fileName.getNameCount()).toString();
+                }
+
+                log.debug("Send to user path: " + path + " and token: " + message.getToken());
+
+                ctx.writeAndFlush(FileDataMessage.of(message.getToken(), fileName.toString(), path));
+            }
+
+
         } else if (serverMessage instanceof CloseTerminalMessage message) {
             sessions.remove(message.getToken());
 

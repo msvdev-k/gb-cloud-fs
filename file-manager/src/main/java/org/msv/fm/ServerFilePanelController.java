@@ -38,58 +38,59 @@ public class ServerFilePanelController implements Initializable {
             network = new Network(HOST, PORT);
             buf = new byte[256];
 
-            Thread readThread = new Thread(this::readLoop);
-            readThread.setDaemon(true);
-            readThread.start();
+//            Thread readThread = new Thread(this::readLoop);
+//            readThread.setDaemon(true);
+//            readThread.start();
+
 
         } catch (Exception e) {
             System.err.println(e.getMessage());
         }
     }
 
-
-    private void readLoop() {
-        try {
-            while (true) {
-                String command = network.readMessage();
-
-                if (command.equals("#list#")) {
-                    Platform.runLater(() -> serverListView.getItems().clear());
-
-                    int len = network.readInt();
-
-                    for (int i = 0; i < len; i++) {
-                        String file = network.readMessage();
-                        Platform.runLater(() -> serverListView.getItems().add(file));
-                    }
-                }
-            }
-
-        } catch (Exception e) {
-            System.err.println("Connection lost");
-        }
-    }
-
-
-    public void upload(Path path) throws IOException {
-
-        network.getOut().writeUTF("#file#");
-        network.getOut().writeUTF(path.getFileName().toString());
-
-        File toSend = path.toFile();
-        network.getOut().writeLong(toSend.length());
-
-        try (FileInputStream fis = new FileInputStream(toSend)) {
-            while (fis.available() > 0) {
-                int read = fis.read(buf);
-                network.getOut().write(buf, 0, read);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        network.getOut().flush();
-    }
+//
+//    private void readLoop() {
+//        try {
+//            while (true) {
+//                String command = network.readMessage();
+//
+//                if (command.equals("#list#")) {
+//                    Platform.runLater(() -> serverListView.getItems().clear());
+//
+//                    int len = network.readInt();
+//
+//                    for (int i = 0; i < len; i++) {
+//                        String file = network.readMessage();
+//                        Platform.runLater(() -> serverListView.getItems().add(file));
+//                    }
+//                }
+//            }
+//
+//        } catch (Exception e) {
+//            System.err.println("Connection lost");
+//        }
+//    }
+//
+//
+//    public void upload(Path path) throws IOException {
+//
+//        network.getOut().writeUTF("#file#");
+//        network.getOut().writeUTF(path.getFileName().toString());
+//
+//        File toSend = path.toFile();
+//        network.getOut().writeLong(toSend.length());
+//
+//        try (FileInputStream fis = new FileInputStream(toSend)) {
+//            while (fis.available() > 0) {
+//                int read = fis.read(buf);
+//                network.getOut().write(buf, 0, read);
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//
+//        network.getOut().flush();
+//    }
 
 
 

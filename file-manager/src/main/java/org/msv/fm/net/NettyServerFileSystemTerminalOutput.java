@@ -31,6 +31,10 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
     private Network network;
 
 
+    // Флаг аутентификации
+    private boolean authFlag = false;
+
+
     public NettyServerFileSystemTerminalOutput(String host, int port) {
         this.network = new Network(host, port);
         this.network.setReadConsumer(this::serverMessageParser);
@@ -44,6 +48,12 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
      */
     private void serverMessageParser(ServerMessage message) {
 
+        // === Аутентификация ===
+        if (message instanceof ConnectionRequest request) {
+            authFlag = request.isConnect();
+        }
+
+
         if (!sessions.containsKey(message.getToken())) {
             System.out.println(message.getToken());
             return;
@@ -51,12 +61,19 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
 
         Session session = sessions.get(message.getToken());
 
+
+        if (!authFlag) {
+            session.output.error("Для удалённого подключения необходимо ввести логин и пароль");
+            return;
+        }
+
+
         // === RemoteDirectoryRequest ===
         if (message instanceof RemoteDirectoryRequest request) {
             session.output.path(Paths.get(request.getPath()));
 
 
-        // === RemoteFilesListRequest ===
+            // === RemoteFilesListRequest ===
         } else if (message instanceof RemoteFilesListRequest request) {
             List<FileInfo> fileInfoList = request.getFiles().stream()
                     .map(NettyServerFileInfo::get).toList();
@@ -64,12 +81,12 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
             session.output.fileList(fileInfoList, Paths.get(request.getPath()));
 
 
-        // === AddFileRequest ===
+            // === AddFileRequest ===
         } else if (message instanceof AddFileRequest request) {
             session.output.addFile(Path.of(request.getPath()));
 
 
-        // === FileDataMessage ===
+            // === FileDataMessage ===
         } else if (message instanceof FileDataMessage request) {
 
             if (session.getFilePath == null || session.getFileTerminal == null) return;
@@ -126,6 +143,20 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
         if (sessions.isEmpty()) {
             network.stop();
         }
+    }
+
+
+    /**
+     * Установить подключение к терминалу.
+     * (Для терминалов которые поддерживают вход по логину и паролю)
+     *
+     * @param login    логин
+     * @param password пароль
+     */
+    @Override
+    public void connect(String login, String password) {
+        network.start();
+        network.write(new ConnectMessage("", login, password));
     }
 
 

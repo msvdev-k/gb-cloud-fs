@@ -3,6 +3,7 @@ package org.msv.sfs.netty;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import lombok.extern.slf4j.Slf4j;
+import org.msv.sfs.authentication.AuthenticationService;
 import org.msv.sm.*;
 
 import java.nio.file.Files;
@@ -15,34 +16,84 @@ import java.util.Map;
 @Slf4j
 public class FileServerHandler extends SimpleChannelInboundHandler<ServerMessage> {
 
+    // Сервис аутентификации
+    private final AuthenticationService authenticationService;
+
     // Корневая директория пользователя
-    private final Path rootDir;
+    private Path rootDir;
 
     // Список сессий. Ключ - токен, значение - экземпляр класса сессии.
     private final Map<String, Session> sessions = new HashMap<>();
 
 
-    public FileServerHandler() {
-        rootDir = Path.of(System.getProperty("user.home"));
+    public FileServerHandler(AuthenticationService authenticationService) {
+        this.authenticationService = authenticationService;
+        this.rootDir = null;
+    }
+
+
+    private void setRootDir(String rootDir) {
+        this.rootDir = Path.of(System.getProperty("user.home")).resolve(rootDir);
     }
 
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        ctx.writeAndFlush(new ServerMessage("Server connected") {
-        });
+        ctx.writeAndFlush(new ConnectionRequest("Server connected", false));
     }
 
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, ServerMessage serverMessage) throws Exception {
 
-        if (serverMessage instanceof OpenTerminalMessage message) {
+
+
+
+
+        // === Аутентификация пользователя
+
+        if (serverMessage instanceof ConnectMessage message) {
+
+            log.debug("ConnectMessage with token: " + message.getToken());
+
+            String id = authenticationService.getID(message.getLogin(), message.getPassword());
+
+            log.debug("Connect with id: " + id);
+
+            if (id != null) {
+                setRootDir(id);
+                // Пользователь аутентифицировался
+                ctx.writeAndFlush(new ConnectionRequest(serverMessage.getToken(), true));
+
+            } else {
+                // Пользователь не аутентифицировался
+                ctx.writeAndFlush(new ConnectionRequest(serverMessage.getToken(), false));
+            }
+
+
+
+        // === Проверка аутентификации пользователя по корневому каталогу ===
+
+        } else if (this.rootDir == null) {
+            // Пользователь не аутентифицировался
+            log.debug("this.rootDir == null");
+            ctx.writeAndFlush(new ConnectionRequest(serverMessage.getToken(), false));
+
+
+
+
+        // === Открыть сессию ===
+
+        } else if (serverMessage instanceof OpenTerminalMessage message) {
             Session session = new Session();
             session.currentDir = rootDir;
             sessions.put(message.getToken(), session);
 
             log.debug("OpenTerminalMessage with token: " + message.getToken());
+
+
+
+        // === Изменить текущую директорию ===
 
         } else if (serverMessage instanceof ChangeDirectoryMessage message) {
             String token = message.getToken();
@@ -71,6 +122,10 @@ public class FileServerHandler extends SimpleChannelInboundHandler<ServerMessage
                 ctx.writeAndFlush(new RemoteDirectoryRequest(message.getToken(), path));
             }
 
+
+
+        // === Запрос списка файлов в указанной директории ===
+
         } else if (serverMessage instanceof FileListingMessage message) {
             String token = message.getToken();
 
@@ -97,7 +152,9 @@ public class FileServerHandler extends SimpleChannelInboundHandler<ServerMessage
 
             }
 
-        // === FileDataMessage ===
+
+
+        // === Сохранить файл на сервере ===
 
         } else if (serverMessage instanceof FileDataMessage message) {
             String token = message.getToken();
@@ -126,7 +183,9 @@ public class FileServerHandler extends SimpleChannelInboundHandler<ServerMessage
                 ctx.writeAndFlush(new AddFileRequest(message.getToken(), path));
             }
 
-        // === GetRemoteFileMessage ===
+
+
+        // === Получить файл с сервера ===
 
         } else if (serverMessage instanceof GetRemoteFileMessage message) {
             String token = message.getToken();
@@ -153,6 +212,9 @@ public class FileServerHandler extends SimpleChannelInboundHandler<ServerMessage
                 ctx.writeAndFlush(FileDataMessage.of(message.getToken(), fileName.toString(), path));
             }
 
+
+
+        // === Закрыть текущую сессию (соединение с сервером не закрывается) ===
 
         } else if (serverMessage instanceof CloseTerminalMessage message) {
             sessions.remove(message.getToken());

@@ -146,27 +146,9 @@ public class MainController implements Initializable {
                         "Между удалёнными файловыми системами копирование файлов запрещено!",
                         ButtonType.OK);
                 alert.showAndWait();
-                return;
             }
         }
 
-
-//        Path srcPath = Paths.get(filesPC.getCurrentPath().toString(), filesPC.getSelectedFileName());
-//        Path dstPath = Paths.get(dstPC.getCurrentPath()).resolve(srcPath.getFileName().toString());
-
-
-//        try {
-////            serverPC.upload(srcPath);
-//
-////            Files.copy(srcPath, dstPath);
-////            dstPC.updateList(Paths.get(dstPC.getCurrentPath()));
-////
-//        } catch (IOException e) {
-//            Alert alert = new Alert(Alert.AlertType.WARNING,
-//                    "Не удалось скопировать указанный файл",
-//                    ButtonType.OK);
-//            alert.showAndWait();
-//        }
 
     }
 }

@@ -60,6 +60,19 @@ public class JVMFileSystemTerminalOutput implements FileSystemTerminalOutput {
 
 
     /**
+     * Установить подключение к терминалу.
+     * (Для терминалов которые поддерживают вход по логину и паролю)
+     *
+     * @param login    логин
+     * @param password пароль
+     */
+    @Override
+    public void connect(String login, String password) {
+
+    }
+
+
+    /**
      * Изменить текущую директорию
      *
      * @param token токен сессии

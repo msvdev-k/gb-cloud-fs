@@ -11,11 +11,14 @@ import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 import lombok.extern.slf4j.Slf4j;
-
+import org.msv.sfs.authentication.AuthenticationService;
+import org.msv.sfs.authentication.SQLiteAuthService;
 
 
 @Slf4j
 public class NettyServer {
+
+    private final AuthenticationService authenticationService;
 
     public static void main(String[] args) {
 
@@ -28,10 +31,16 @@ public class NettyServer {
 
     public NettyServer() {
 
+        authenticationService = new SQLiteAuthService();
+
         EventLoopGroup auth = new NioEventLoopGroup(1);
         EventLoopGroup worker = new NioEventLoopGroup();
 
         try {
+
+            if (!authenticationService.start()) {
+                throw new RuntimeException("Authentication service not started!!");
+            }
 
             ServerBootstrap server = new ServerBootstrap();
             server.group(auth, worker)
@@ -42,7 +51,7 @@ public class NettyServer {
                             socketChannel.pipeline().addLast(
                                     new ObjectDecoder(ClassResolvers.cacheDisabled(null)),
                                     new ObjectEncoder(),
-                                    new FileServerHandler()
+                                    new FileServerHandler(authenticationService)
                             );
                         }
                     });
@@ -58,6 +67,8 @@ public class NettyServer {
         } finally {
             auth.shutdownGracefully();
             worker.shutdownGracefully();
+
+            authenticationService.stop();
         }
     }
 

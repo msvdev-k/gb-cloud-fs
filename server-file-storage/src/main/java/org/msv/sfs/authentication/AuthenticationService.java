@@ -29,4 +29,15 @@ public interface AuthenticationService {
      */
     String getID(String login, String password);
 
+
+    /**
+     * Добавление новой учётной записи
+     *
+     * @param login    логин пользователя
+     * @param password пароль пользователя
+     * @return идентификатор либо null, если добавить пользователя не удалось
+     */
+    String add(String login, String password);
+
+
 }

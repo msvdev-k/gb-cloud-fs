@@ -18,27 +18,30 @@ import org.msv.sfs.authentication.SQLiteAuthService;
 @Slf4j
 public class NettyServer {
 
-    private final AuthenticationService authenticationService;
-
     public static void main(String[] args) {
-
         new NettyServer();
-
     }
 
-    private static final int PORT = 8189;
 
 
+    // Конфигурация сервера
+    private final ServerConfiguration config;
+
+
+    /**
+     * Основной конструктор запускающий работу сервера
+     */
     public NettyServer() {
 
-        authenticationService = new SQLiteAuthService();
+        config = new ServerConfiguration();
 
         EventLoopGroup auth = new NioEventLoopGroup(1);
         EventLoopGroup worker = new NioEventLoopGroup();
 
+
         try {
 
-            if (!authenticationService.start()) {
+            if (!config.getAuthenticationService().start()) {
                 throw new RuntimeException("Authentication service not started!!");
             }
 
@@ -51,12 +54,13 @@ public class NettyServer {
                             socketChannel.pipeline().addLast(
                                     new ObjectDecoder(ClassResolvers.cacheDisabled(null)),
                                     new ObjectEncoder(),
-                                    new FileServerHandler(authenticationService)
+                                    new AuthenticationInboundHandler(config),
+                                    new FileServerInboundHandler()
                             );
                         }
                     });
 
-            ChannelFuture future = server.bind(PORT).sync();
+            ChannelFuture future = server.bind(config.getPort()).sync();
             log.debug("Server is ready");
 
             future.channel().closeFuture().sync();
@@ -68,7 +72,7 @@ public class NettyServer {
             auth.shutdownGracefully();
             worker.shutdownGracefully();
 
-            authenticationService.stop();
+            config.getAuthenticationService().stop();
         }
     }
 

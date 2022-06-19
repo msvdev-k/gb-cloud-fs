@@ -5,6 +5,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.msv.sfs.authentication.AuthenticationService;
 import org.msv.sm.*;
+import org.msv.sm.request.AbstractRequest;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,40 +14,21 @@ import java.util.List;
 import java.util.Map;
 
 
+/**
+ * Входящий обработчик отвечающий за манипуляции с файловой системой.
+ */
 @Slf4j
-public class FileServerHandler extends SimpleChannelInboundHandler<ServerMessage> {
-
-    // Сервис аутентификации
-    private final AuthenticationService authenticationService;
-
-    // Корневая директория пользователя
-    private Path rootDir;
-
-    // Список сессий. Ключ - токен, значение - экземпляр класса сессии.
-    private final Map<String, ServerSession> sessions = new HashMap<>();
+public class FileServerInboundHandler extends SimpleChannelInboundHandler<ServerSession> {
 
 
-    public FileServerHandler(AuthenticationService authenticationService) {
-        this.authenticationService = authenticationService;
-        this.rootDir = null;
-    }
-
-
-    private void setRootDir(String rootDir) {
-        this.rootDir = Path.of(System.getProperty("user.home")).resolve(rootDir);
-    }
-
-
+    /**
+     * Метод обрабатывающий принимаемые сообщения.
+     */
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        ctx.writeAndFlush(new ConnectionRequest("Server connected", false));
-    }
+    protected void channelRead0(ChannelHandlerContext ctx, ServerSession session) throws Exception {
 
-
-    @Override
-    protected void channelRead0(ChannelHandlerContext ctx, ServerMessage serverMessage) throws Exception {
-
-
+        // Обрабатываемый запрос
+        AbstractRequest abstractRequest = session.getRequest();
 
 
 

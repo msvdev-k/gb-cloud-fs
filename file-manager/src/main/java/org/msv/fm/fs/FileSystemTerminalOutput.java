@@ -1,6 +1,5 @@
 package org.msv.fm.fs;
 
-import java.nio.file.Path;
 import java.util.List;
 
 
@@ -9,18 +8,41 @@ import java.util.List;
  */
 public interface FileSystemTerminalOutput {
 
+    /**
+     * Установить подключение к терминалу.
+     * (Для терминалов которые поддерживают вход по логину и паролю)
+     *
+     * @param login    логин
+     * @param password пароль
+     * @param input    объект получающий сообщения от терминала
+     */
+    void connect(String login, String password, FileSystemTerminalInput input);
+
 
     /**
-     * Начать новую сессию в терминале
+     * Запрос состояния подключения.
+     * @param input объект получающий сообщения от терминала
+     */
+    //void connectionState(FileSystemTerminalInput input);
+
+
+    /**
+     * Закрыть подключение к терминалу.
+     */
+    void closeConnection();
+
+
+    /**
+     * Начать новую сессию для работы в терминале.
      *
      * @param input объект получающий сообщения от терминала
-     * @return токен новой сессии
+     * @param location локация файловой системы
      */
-    FileSystemTerminalToken startSession(FileSystemTerminalInput input);
+    void startSession(FileSystemTerminalInput input, FileSystemLocation location);
 
 
     /**
-     * Остановить сессию
+     * Остановить сессию, работающую в терминале.
      *
      * @param token токен сессии
      */
@@ -28,57 +50,61 @@ public interface FileSystemTerminalOutput {
 
 
     /**
-     * Установить подключение к терминалу.
-     * (Для терминалов которые поддерживают вход по логину и паролю)
-     * @param login логин
-     * @param password пароль
-     */
-    void connect(String login, String password);
-
-
-    /**
-     * Изменить текущую директорию
+     * Изменить текущую директорию.
      *
      * @param token токен сессии
-     * @param path  путь до директории
+     * @param path  путь до директории (".." - переход в родительскую директорию)
      */
     void cd(FileSystemTerminalToken token, String path);
 
 
     /**
-     * Получить список файлов по указанному пути
+     * Запросить текущую рабочую директорию.
      *
      * @param token токен сессии
-     * @param path  путь из которого собираются файлы
      */
-    void ls(FileSystemTerminalToken token, String path);
+    void wd(FileSystemTerminalToken token);
 
 
     /**
-     * Скопировать файл из локальной файловой системы в файловую систему терминала
+     * Получить список файлов текущей директории.
+     *
      * @param token токен сессии
-     * @param sourcePath полный путь к файлу локальной файловой системы (источник)
+     */
+    void ls(FileSystemTerminalToken token);
+
+
+    /**
+     * Скопировать файл из локальной файловой системы в файловую систему терминала.
+     *
+     * @param token           токен сессии
+     * @param sourcePath      полный путь к файлу локальной файловой системы (источник)
      * @param destinationPath путь к файлу в файловой системе терминала (приёмник)
      */
     void put(FileSystemTerminalToken token, String sourcePath, String destinationPath);
 
 
     /**
-     * Скопировать файл из файловой системы терминала на локальную файловую систему
-     * @param token токен сессии
-     * @param sourcePath путь к файлу в файловой системе терминала (источник)
-     * @param destinationPath полный путь к файлу локальной файловой системы (приёмник)
-     * @param destinationTerminal терминал в который производится копирование файла
+     * Скопировать файл из файловой системы терминала в файловую систему другого терминала.
+     * Копирование осуществляется через временный файл на локальной файловой системе.
+     *
+     * @param token                    токен сессии
+     * @param sourcePath               путь к файлу в файловой системе терминала источника
+     * @param destinationTerminalInput получатель сообщений терминал приёмника
+     * @param destinationPath          путь к файлу в файловой системе терминала приёмника
      */
-    void get(FileSystemTerminalToken token, String sourcePath, String destinationPath, FileSystemTerminalInput destinationTerminal);
+    void copy(FileSystemTerminalToken token, String sourcePath, FileSystemTerminalInput destinationTerminalInput, String destinationPath);
 
 
     /**
-     * Получить текущую корневую директорию
+     * Скопировать файл из файловой системы терминала на локальную файловую систему
      *
-     * @param token токен сессии
+     * @param token               токен сессии
+     * @param sourcePath          путь к файлу в файловой системе терминала (источник)
+     * @param destinationPath     полный путь к файлу локальной файловой системы (приёмник)
+     * @param destinationTerminal терминал в который производится копирование файла
      */
-    void root(FileSystemTerminalToken token);
+    //void get(FileSystemTerminalToken token, String sourcePath, String destinationPath, FileSystemTerminalInput destinationTerminal);
 
 
     /**
@@ -86,7 +112,7 @@ public interface FileSystemTerminalOutput {
      *
      * @return список корневых директорий
      */
-    List<Path> roots();
+    List<String> roots();
 
 }
 

@@ -11,8 +11,6 @@ import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 import lombok.extern.slf4j.Slf4j;
-import org.msv.sfs.authentication.AuthenticationService;
-import org.msv.sfs.authentication.SQLiteAuthService;
 
 
 @Slf4j
@@ -21,7 +19,6 @@ public class NettyServer {
     public static void main(String[] args) {
         new NettyServer();
     }
-
 
 
     // Конфигурация сервера

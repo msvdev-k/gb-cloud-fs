@@ -3,15 +3,12 @@ package org.msv.sfs.netty;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import lombok.extern.slf4j.Slf4j;
-import org.msv.sfs.authentication.AuthenticationService;
-import org.msv.sm.*;
-import org.msv.sm.request.AbstractRequest;
+import org.msv.sm.RemoteFileDescription;
+import org.msv.sm.request.*;
+import org.msv.sm.response.*;
+import org.msv.sm.response.error.*;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 
 /**
@@ -30,178 +27,124 @@ public class FileServerInboundHandler extends SimpleChannelInboundHandler<Server
         // Обрабатываемый запрос
         AbstractRequest abstractRequest = session.getRequest();
 
+        // Токен
+        String token = session.getToken();
 
 
-        // === Аутентификация пользователя
 
-        if (serverMessage instanceof ConnectMessage message) {
+        // === ChangeDirectory ===
 
-            log.debug("ConnectMessage with token: " + message.getToken());
+        if (abstractRequest instanceof ChangeDirectory request) {
 
-            String id = authenticationService.getID(message.getLogin(), message.getPassword());
+            String dirName = request.getDirectoryName();
 
-            log.debug("Connect with id: " + id);
-
-            if (id != null) {
-                setRootDir(id);
-                // Пользователь аутентифицировался
-                ctx.writeAndFlush(new ConnectionRequest(serverMessage.getToken(), true));
+            if (session.changeDirectory(dirName)) {
+                ctx.writeAndFlush(new CurrentDirectory(token, session.getCurrentDirectory()));
 
             } else {
-                // Пользователь не аутентифицировался
-                ctx.writeAndFlush(new ConnectionRequest(serverMessage.getToken(), false));
+                ctx.writeAndFlush(new ChangeDirectoryError(token, "Error change directory to " + dirName));
             }
 
 
 
-        // === Проверка аутентификации пользователя по корневому каталогу ===
+        // === WorkingDirectory ===
 
-        } else if (this.rootDir == null) {
-            // Пользователь не аутентифицировался
-            log.debug("this.rootDir == null");
-            ctx.writeAndFlush(new ConnectionRequest(serverMessage.getToken(), false));
+        } else if (abstractRequest instanceof WorkingDirectory) {
 
+            ctx.writeAndFlush(new CurrentDirectory(token, session.getCurrentDirectory()));
 
 
 
-        // === Открыть сессию ===
+        // === GetListOfFiles ===
 
-        } else if (serverMessage instanceof OpenTerminalMessage message) {
-            ServerSession session = new ServerSession();
-            session.currentDir = rootDir;
-            sessions.put(message.getToken(), session);
+        } else if (abstractRequest instanceof GetListOfFiles) {
 
-            log.debug("OpenTerminalMessage with token: " + message.getToken());
+            List<RemoteFileDescription> files = session.getFistOfFiles();
 
+            if (files != null) {
+                ctx.writeAndFlush(new ListOfFiles(token, files));
 
-
-        // === Изменить текущую директорию ===
-
-        } else if (serverMessage instanceof ChangeDirectoryMessage message) {
-            String token = message.getToken();
-
-            log.debug("ChangeDirectoryMessage with token: " + token);
-            log.debug("ChangeDirectoryMessage with path: " + message.getPath());
-
-            if (!sessions.containsKey(token)) return;
-
-            ServerSession session = sessions.get(token);
-            Path newDir = session.currentDir.resolve(message.getPath()).normalize();
-
-            if (newDir.startsWith(rootDir) &&
-                    Files.isDirectory(newDir) &&
-                    Files.exists(newDir)) {
-
-                session.currentDir = newDir;
-
-                String path = "";
-                if (rootDir.getNameCount() < newDir.getNameCount()) {
-                    path = newDir.subpath(rootDir.getNameCount(), newDir.getNameCount()).toString();
-                }
-
-                log.debug("Send to user path: " + path + " and token: " + message.getToken());
-
-                ctx.writeAndFlush(new RemoteDirectoryRequest(message.getToken(), path));
+            } else {
+                ctx.writeAndFlush(new GetListOfFilesError(token, "Error getting list of files in current directory"));
             }
 
 
 
-        // === Запрос списка файлов в указанной директории ===
+        // === PutFile ===
 
-        } else if (serverMessage instanceof FileListingMessage message) {
-            String token = message.getToken();
+        } else if (abstractRequest instanceof PutFile request) {
 
-            log.debug("FileListingMessage with token " + token);
+            RemoteFileDescription newFileDescription = session.putFile(request.getFileDescription(), request.getData());
 
-            if (!sessions.containsKey(token)) return;
+            if (newFileDescription != null) {
+                ctx.writeAndFlush(new FileAdded(token, newFileDescription));
 
-            Path dir = rootDir.resolve(message.getPath()).normalize();
-
-            if (dir.startsWith(rootDir) &&
-                    Files.isDirectory(dir) &&
-                    Files.exists(dir)) {
-
-                List<RemoteFileDescription> files = Files.list(dir).map(ServerFileInfo::get).toList();
-
-                String path = "";
-                if (rootDir.getNameCount() < dir.getNameCount()) {
-                    path = dir.subpath(rootDir.getNameCount(), dir.getNameCount()).toString();
-                }
-                log.debug("Send to user files from path: " + path + " and token: " + message.getToken());
-
-                ctx.writeAndFlush(new RemoteFilesListRequest(message.getToken(), path, files));
-
-
+            } else {
+                ctx.writeAndFlush(new PutFileError(token, "Error writing file"));
             }
 
 
 
-        // === Сохранить файл на сервере ===
+        // === GetFile ===
 
-        } else if (serverMessage instanceof FileDataMessage message) {
-            String token = message.getToken();
+        } else if (abstractRequest instanceof GetFile request) {
 
-            log.debug("FileDataMessage with token: " + token);
-            log.debug("FileDataMessage with path: " + message.getPath());
+            FileContent fileContent = session.getFile(request.getFileName());
 
-            if (!sessions.containsKey(token)) return;
+            if (fileContent != null) {
+                ctx.writeAndFlush(fileContent);
 
-            ServerSession session = sessions.get(token);
-            Path fileName = session.currentDir.resolve(message.getPath()).normalize();
-
-            if (fileName.startsWith(rootDir) &&
-                    !Files.isDirectory(fileName) &&
-                    !Files.exists(fileName)) {
-
-                Files.write(fileName, message.getData());
-
-                String path = "";
-                if (rootDir.getNameCount() < fileName.getNameCount()) {
-                    path = fileName.subpath(rootDir.getNameCount(), fileName.getNameCount()).toString();
-                }
-
-                log.debug("Send to user path: " + path + " and token: " + message.getToken());
-
-                ctx.writeAndFlush(new AddFileRequest(message.getToken(), path));
+            } else {
+                ctx.writeAndFlush(new FileContentError(token, "File read error"));
             }
 
 
 
-        // === Получить файл с сервера ===
+        // === MakeDirectory ===
 
-        } else if (serverMessage instanceof GetRemoteFileMessage message) {
-            String token = message.getToken();
+        } else if (abstractRequest instanceof MakeDirectory request) {
 
-            log.debug("GetRemoteFileMessage with token: " + token);
-            log.debug("GetRemoteFileMessage with path: " + message.getPath());
+            RemoteFileDescription description = session.makeDirectory(request.getNewDirectoryName());
 
-            if (!sessions.containsKey(token)) return;
+            if (description != null) {
+                ctx.writeAndFlush(new FileAdded(token, description));
 
-            ServerSession session = sessions.get(token);
-            Path fileName = session.currentDir.resolve(message.getPath()).normalize();
-
-            if (fileName.startsWith(rootDir) &&
-                    !Files.isDirectory(fileName) &&
-                    Files.exists(fileName)) {
-
-                String path = "";
-                if (rootDir.getNameCount() < fileName.getNameCount()) {
-                    path = fileName.subpath(rootDir.getNameCount(), fileName.getNameCount()).toString();
-                }
-
-                log.debug("Send to user path: " + path + " and token: " + message.getToken());
-
-                ctx.writeAndFlush(FileDataMessage.of(message.getToken(), fileName.toString(), path));
+            } else {
+                ctx.writeAndFlush(new MakeDirectoryError(token, "Directory creation error"));
             }
 
 
 
-        // === Закрыть текущую сессию (соединение с сервером не закрывается) ===
+        // === Remove ===
 
-        } else if (serverMessage instanceof CloseTerminalMessage message) {
-            sessions.remove(message.getToken());
+        } else if (abstractRequest instanceof Remove request) {
 
-            log.debug("CloseTerminalMessage with token: " + message.getToken());
+            RemoteFileDescription description = session.remove(request.getFileName());
+
+            if (description != null) {
+                ctx.writeAndFlush(new FileRemoved(token, description));
+
+            } else {
+                ctx.writeAndFlush(new RemoveError(token, "Deletion error"));
+            }
+
+
+
+        // === Rename ===
+
+        } else if (abstractRequest instanceof Rename request) {
+
+            RemoteFileDescription description = session.rename(request.getName(), request.getNewName());
+
+            if (description != null) {
+                ctx.writeAndFlush(new FileRenamed(token, request.getName(), description));
+
+            } else {
+                ctx.writeAndFlush(new RenameError(token, "Renaming error"));
+            }
+
+
+
         }
 
     }

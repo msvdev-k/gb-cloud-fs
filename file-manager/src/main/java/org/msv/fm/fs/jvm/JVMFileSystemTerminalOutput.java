@@ -1,19 +1,16 @@
 package org.msv.fm.fs.jvm;
 
-import org.msv.fm.fs.FileInfo;
-import org.msv.fm.fs.FileSystemTerminalInput;
-import org.msv.fm.fs.FileSystemTerminalOutput;
-import org.msv.fm.fs.FileSystemTerminalToken;
+import org.msv.fm.fs.*;
 
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 
 /**
@@ -27,57 +24,49 @@ public class JVMFileSystemTerminalOutput implements FileSystemTerminalOutput {
     private final Map<FileSystemTerminalToken, Session> sessions = new HashMap<>();
 
 
-    /**
-     * Начать новую сессию в терминале
-     *
-     * @param input объект получающий сообщения от терминала
-     * @return токен новой сессии
-     */
     @Override
-    public FileSystemTerminalToken startSession(FileSystemTerminalInput input) {
+    public void connect(String login, String password, FileSystemTerminalInput input) {
+        input.connectionState(true);
+    }
+
+
+//    @Override
+//    public void connectionState(FileSystemTerminalInput input) {
+//        input.connectionState(true);
+//    }
+
+
+    @Override
+    public void closeConnection() {
+    }
+
+
+    @Override
+    public void startSession(FileSystemTerminalInput input, FileSystemLocation location) {
         FileSystemTerminalToken token = new FileSystemTerminalToken();
 
         Session session = new Session();
         session.output = input;
-        session.currentDir = Paths.get(System.getProperty("user.home")).toAbsolutePath();
-        session.root = session.currentDir.getRoot();
+        session.currentDir = Path.of(location.getRoot());
+        session.root = Path.of(location.getRoot());
 
         sessions.put(token, session);
 
-        return token;
+        input.sessionState(token, true);
     }
 
 
-    /**
-     * Остановить сессию
-     *
-     * @param token токен сессии
-     */
     @Override
     public void stopSession(FileSystemTerminalToken token) {
+
+        if (sessions.containsKey(token)) {
+            sessions.get(token).output.sessionState(token, false);
+        }
+
         sessions.remove(token);
     }
 
 
-    /**
-     * Установить подключение к терминалу.
-     * (Для терминалов которые поддерживают вход по логину и паролю)
-     *
-     * @param login    логин
-     * @param password пароль
-     */
-    @Override
-    public void connect(String login, String password) {
-
-    }
-
-
-    /**
-     * Изменить текущую директорию
-     *
-     * @param token токен сессии
-     * @param path путь до директории
-     */
     @Override
     public void cd(FileSystemTerminalToken token, String path) {
 
@@ -89,45 +78,37 @@ public class JVMFileSystemTerminalOutput implements FileSystemTerminalOutput {
 
         Path newDir = Path.of(path).normalize();
 
-        Path dirRoot = newDir.getRoot();
-        if (dirRoot == null) {
+        if (newDir.getRoot() == null) {
             newDir = session.currentDir.resolve(newDir).normalize();
-
-        } else {
-            List<Path> roots = new ArrayList<>();
-            FileSystems.getDefault().getRootDirectories().forEach(roots::add);
-
-            if (roots.stream().anyMatch(p -> p.equals(dirRoot))) {
-                session.root = dirRoot;
-                session.output.root(dirRoot);
-            }
-            else {
-                session.output.error("Некорректный путь к директории");
-                return;
-            }
         }
+
 
         if (newDir.startsWith(session.root) &&
                 Files.isDirectory(newDir) &&
                 Files.exists(newDir)) {
 
             session.currentDir = newDir;
-            session.output.path(newDir);
-        }
-        else {
+            session.output.workingDirectory(session.currentDir.toString());
+        } else {
             session.output.error("Некорректный путь к директории");
         }
     }
 
 
-    /**
-     * Получить список файлов по указанному пути
-     *
-     * @param token токен сессии
-     * @param path  путь из которого собираются файлы
-     */
     @Override
-    public void ls(FileSystemTerminalToken token, String path) {
+    public void wd(FileSystemTerminalToken token) {
+
+        if (!sessions.containsKey(token)) {
+            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+        }
+
+        Session session = sessions.get(token);
+        session.output.workingDirectory(session.currentDir.toString());
+    }
+
+
+    @Override
+    public void ls(FileSystemTerminalToken token) {
 
         if (!sessions.containsKey(token)) {
             throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
@@ -135,38 +116,17 @@ public class JVMFileSystemTerminalOutput implements FileSystemTerminalOutput {
 
         Session session = sessions.get(token);
 
-        Path dir = Path.of(path).normalize();
+        try (Stream<Path> stream = Files.list(session.currentDir)) {
 
-        if (dir.getRoot() == null) {
-            dir = session.currentDir.resolve(dir).normalize();
-        }
+            List<FileInfo> fileInfoList = stream.map(JVMFileInfo::get).toList();
+            session.output.listOfFiles(fileInfoList);
 
-        if (dir.startsWith(session.root) &&
-                Files.isDirectory(dir) &&
-                Files.exists(dir)) {
-
-            try {
-                List<FileInfo> fileInfoList = Files.list(dir).map(JVMFileInfo::get).toList();
-                session.output.fileList(fileInfoList, dir);
-
-            } catch (IOException e) {
-                session.output.error("Ошибка обновления списка файлов");
-            }
-
-        }
-        else {
-            session.output.error("Некорректный путь к директории");
+        } catch (IOException e) {
+            session.output.error("Ошибка обновления списка файлов");
         }
     }
 
 
-    /**
-     * Скопировать файл из локальной файловой системы в файловую систему терминала.
-     *
-     * @param token           токен сессии
-     * @param sourcePath      полный путь к файлу локальной файловой системы (источник)
-     * @param destinationPath путь к файлу в файловой системе терминала (приёмник)
-     */
     @Override
     public void put(FileSystemTerminalToken token, String sourcePath, String destinationPath) {
 
@@ -188,40 +148,64 @@ public class JVMFileSystemTerminalOutput implements FileSystemTerminalOutput {
 
             try {
                 Files.copy(Path.of(sourcePath), distPath);
-                session.output.addFile(distPath);
+                session.output.fileAdded(distPath.toString());
 
             } catch (IOException e) {
                 session.output.error("Ошибка копирования файла");
             }
 
-        }
-        else {
+        } else {
             session.output.error("Некорректный путь к файлу");
         }
     }
 
 
     @Override
-    public void get(FileSystemTerminalToken token, String sourcePath, String destinationPath, FileSystemTerminalInput destinationTerminal) {
-       throw new RuntimeException("Метод JVMFileSystemTerminalOutput::get не реализован");
-    }
-
-
-    /**
-     * Получить текущую корневую директорию
-     *
-     * @param token токен сессии
-     */
-    @Override
-    public void root(FileSystemTerminalToken token) {
+    public void copy(FileSystemTerminalToken token, String sourcePath, FileSystemTerminalInput destinationTerminalInput, String destinationPath) {
 
         if (!sessions.containsKey(token)) {
             throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
         }
 
         Session session = sessions.get(token);
-        session.output.root(Paths.get(session.root.toUri()));
+
+        Path sourceFile = Path.of(sourcePath).normalize();
+
+        if (sourceFile.getRoot() == null) {
+            sourceFile = session.currentDir.resolve(sourcePath).normalize();
+        }
+
+        if (sourceFile.startsWith(session.currentDir) &&
+                !Files.isDirectory(sourceFile) &&
+                Files.exists(sourceFile)) {
+
+            destinationTerminalInput.putFile(sourceFile.toString(), destinationPath);
+        }
+
     }
+
+
+    //    @Override
+//    public void get(FileSystemTerminalToken token, String sourcePath, String destinationPath, FileSystemTerminalInput destinationTerminal) {
+//        throw new RuntimeException("Метод JVMFileSystemTerminalOutput::get не реализован");
+//    }
+
+
+//    /**
+//     * Получить текущую корневую директорию
+//     *
+//     * @param token токен сессии
+//     */
+//    @Override
+//    public void root(FileSystemTerminalToken token) {
+//
+//        if (!sessions.containsKey(token)) {
+//            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+//        }
+//
+//        Session session = sessions.get(token);
+//        session.output.root(Paths.get(session.root.toUri()));
+//    }
 
 
     /**
@@ -230,9 +214,9 @@ public class JVMFileSystemTerminalOutput implements FileSystemTerminalOutput {
      * @return список корневых директорий
      */
     @Override
-    public List<Path> roots() {
-        List<Path> roots = new ArrayList<>();
-        FileSystems.getDefault().getRootDirectories().forEach(roots::add);
+    public List<String> roots() {
+        List<String> roots = new ArrayList<>();
+        FileSystems.getDefault().getRootDirectories().forEach(path -> roots.add(path.toString()));
         return roots;
     }
 

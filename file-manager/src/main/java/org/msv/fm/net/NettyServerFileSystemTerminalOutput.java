@@ -1,10 +1,9 @@
 package org.msv.fm.net;
 
-import org.msv.fm.fs.FileInfo;
-import org.msv.fm.fs.FileSystemTerminalInput;
-import org.msv.fm.fs.FileSystemTerminalOutput;
-import org.msv.fm.fs.FileSystemTerminalToken;
+import org.msv.fm.fs.*;
 import org.msv.sm.*;
+import org.msv.sm.request.*;
+import org.msv.sm.response.AbstractResponse;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -41,12 +40,144 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
     }
 
 
+    @Override
+    public void connect(String login, String password, FileSystemTerminalInput input) {
+        network.start();
+        if (network.isStart()) {
+            network.write(new OpenConnection("", login, password));
+
+        } else {
+            input.error("Error connecting to remote server");
+        }
+    }
+
+
+//    @Override
+//    public void connectionState(FileSystemTerminalInput input) {
+//        input.connectionState(authFlag);
+//    }
+
+
+    @Override
+    public void closeConnection() {
+        if (network.isStart()) {
+            network.write(new CloseConnection(""));
+        }
+    }
+
+
+    @Override
+    public void startSession(FileSystemTerminalInput input, FileSystemLocation location) {
+
+        if (network.isStart()) {
+
+            FileSystemTerminalToken token = new FileSystemTerminalToken();
+
+            Session session = new Session();
+            session.output = input;
+            session.currentDir = Path.of(location.getRoot());
+            session.root = Path.of(location.getRoot());
+
+            sessions.put(token.toString(), session);
+
+            network.write(new OpenSession(token.toString()));
+
+        } else {
+            input.connectionState(false);
+        }
+    }
+
+
+    @Override
+    public void stopSession(FileSystemTerminalToken token) {
+        network.write(new CloseSession(token.toString()));
+    }
+
+
+    @Override
+    public void cd(FileSystemTerminalToken token, String path) {
+        if (!sessions.containsKey(token.toString())) {
+            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+        }
+        network.write(new ChangeDirectory(token.toString(), path));
+    }
+
+
+    @Override
+    public void wd(FileSystemTerminalToken token) {
+        if (!sessions.containsKey(token.toString())) {
+            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+        }
+        network.write(new WorkingDirectory(token.toString()));
+    }
+
+
+    @Override
+    public void ls(FileSystemTerminalToken token) {
+        if (!sessions.containsKey(token.toString())) {
+            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+        }
+        network.write(new GetListOfFiles(token.toString()));
+    }
+
+
+    @Override
+    public void put(FileSystemTerminalToken token, String sourcePath, String destinationPath) {
+
+        if (!sessions.containsKey(token.toString())) {
+            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+        }
+
+        Session session = sessions.get(token.toString());
+
+        try {
+            PutFile file = new PutFile(token.toString(), Path.of(sourcePath), destinationPath);
+            network.write(file);
+
+        } catch (Exception e) {
+            session.output.error("Ошибка копирования файла");
+            e.printStackTrace();
+        }
+    }
+
+
+    @Override
+    public void copy(FileSystemTerminalToken token, String sourcePath, FileSystemTerminalInput destinationTerminalInput, String destinationPath) {
+
+
+
+    }
+
+    /**
+     * Скопировать файл из файловой системы терминала на локальную файловую систему
+     *
+     * @param token           токен сессии
+     * @param sourcePath      путь к файлу в файловой системе терминала (источник)
+     * @param destinationPath полный путь к файлу локальной файловой системы (приёмник)
+     */
+    @Override
+    public void get(FileSystemTerminalToken token, String sourcePath, String destinationPath, FileSystemTerminalInput destinationTerminal) {
+
+        if (!sessions.containsKey(token.toString())) {
+            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+        }
+
+        Session session = sessions.get(token.toString());
+
+        session.getFilePath = Path.of(destinationPath);
+        session.getFileTerminal = destinationTerminal;
+
+        network.write(new GetRemoteFileMessage(token.toString(), sourcePath));
+    }
+
+
+
     /**
      * Метод получающий сообщения от сервера
      *
      * @param message сообщение от сервера
      */
-    private void serverMessageParser(ServerMessage message) {
+    private void serverMessageParser(AbstractResponse message) {
 
         // === Аутентификация ===
         if (message instanceof ConnectionRequest request) {
@@ -105,141 +236,6 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
     }
 
 
-    /**
-     * Начать новую сессию в терминале
-     *
-     * @param input объект получающий сообщения от терминала
-     * @return токен новой сессии
-     */
-    @Override
-    public FileSystemTerminalToken startSession(FileSystemTerminalInput input) {
-
-        network.start();
-
-        FileSystemTerminalToken token = new FileSystemTerminalToken();
-
-        Session session = new Session();
-        session.output = input;
-        session.currentDir = Paths.get("");
-        session.root = null;
-
-        sessions.put(token.toString(), session);
-        network.write(new OpenTerminalMessage(token.toString()));
-
-        return token;
-    }
-
-
-    /**
-     * Остановить сессию
-     *
-     * @param token токен сессии
-     */
-    @Override
-    public void stopSession(FileSystemTerminalToken token) {
-        sessions.remove(token.toString());
-        network.write(new CloseTerminalMessage(token.toString()));
-
-        if (sessions.isEmpty()) {
-            network.stop();
-        }
-    }
-
-
-    /**
-     * Установить подключение к терминалу.
-     * (Для терминалов которые поддерживают вход по логину и паролю)
-     *
-     * @param login    логин
-     * @param password пароль
-     */
-    @Override
-    public void connect(String login, String password) {
-        network.start();
-        network.write(new ConnectMessage("", login, password));
-    }
-
-
-    /**
-     * Изменить текущую директорию
-     *
-     * @param token токен сессии
-     * @param path  путь до директории
-     */
-    @Override
-    public void cd(FileSystemTerminalToken token, String path) {
-
-        if (!sessions.containsKey(token.toString())) {
-            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
-        }
-
-        network.write(new ChangeDirectoryMessage(token.toString(), path));
-    }
-
-    /**
-     * Получить список файлов по указанному пути
-     *
-     * @param token токен сессии
-     * @param path  путь из которого собираются файлы
-     */
-    @Override
-    public void ls(FileSystemTerminalToken token, String path) {
-
-        if (!sessions.containsKey(token.toString())) {
-            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
-        }
-
-        network.write(new FileListingMessage(token.toString(), path));
-    }
-
-
-    /**
-     * Скопировать файл из локальной файловой системы в файловую систему терминала.
-     *
-     * @param token           токен сессии
-     * @param sourcePath      полный путь к файлу локальной файловой системы (источник)
-     * @param destinationPath путь к файлу в файловой системе терминала (приёмник)
-     */
-    @Override
-    public void put(FileSystemTerminalToken token, String sourcePath, String destinationPath) {
-
-        if (!sessions.containsKey(token.toString())) {
-            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
-        }
-
-        Session session = sessions.get(token.toString());
-
-        try {
-            FileDataMessage fdm = FileDataMessage.of(token.toString(), sourcePath, destinationPath);
-            network.write(fdm);
-
-        } catch (IOException e) {
-            session.output.error("Ошибка копирования файла");
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Скопировать файл из файловой системы терминала на локальную файловую систему
-     *
-     * @param token           токен сессии
-     * @param sourcePath      путь к файлу в файловой системе терминала (источник)
-     * @param destinationPath полный путь к файлу локальной файловой системы (приёмник)
-     */
-    @Override
-    public void get(FileSystemTerminalToken token, String sourcePath, String destinationPath, FileSystemTerminalInput destinationTerminal) {
-
-        if (!sessions.containsKey(token.toString())) {
-            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
-        }
-
-        Session session = sessions.get(token.toString());
-
-        session.getFilePath = Path.of(destinationPath);
-        session.getFileTerminal = destinationTerminal;
-
-        network.write(new GetRemoteFileMessage(token.toString(), sourcePath));
-    }
 
 
     /**
@@ -260,7 +256,7 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
      * @return null
      */
     @Override
-    public List<Path> roots() {
+    public List<String> roots() {
         return null;
     }
 
@@ -272,6 +268,9 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
         public FileSystemTerminalInput output;
         public Path root;
         public Path currentDir;
+
+        // Последняя отправляемая команда на сервер
+        public AbstractRequest lastRequest;
 
         // Путь для сохранения полученного файла и терминал для уведомления о сохранении
         public Path getFilePath;

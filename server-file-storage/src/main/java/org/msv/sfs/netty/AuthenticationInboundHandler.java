@@ -92,7 +92,7 @@ public class AuthenticationInboundHandler extends SimpleChannelInboundHandler<Ab
             String token = request.getToken();
 
             if (!sessions.containsKey(token)) {
-                sessions.put(token, new ServerSession(root));
+                sessions.put(token, new ServerSession(token, root));
             }
 
             ctx.writeAndFlush(new SessionSate(token, true));

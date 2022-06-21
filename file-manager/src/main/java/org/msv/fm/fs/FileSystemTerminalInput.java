@@ -1,6 +1,5 @@
 package org.msv.fm.fs;
 
-import java.nio.file.Path;
 import java.util.List;
 
 
@@ -11,36 +10,57 @@ public interface FileSystemTerminalInput {
 
 
     /**
-     * Абсолютный путь к текущему каталогу
+     * Метод вызывается при изменении или запросе состояния подключения.
+     * Обязательный ответ на команды: connect(...), connectionState(), closeConnection().
+     *
+     * @param state true - терминал подключен, false - подключение отсутствует
+     */
+    void connectionState(boolean state);
+
+
+    /**
+     * Метод вызываемый при подключении или отключении терминальной сессии.
+     * Обязательный ответ на команды: startSession(...), stopSession(...).
+     *
+     * @param token токен текущей сессии
+     * @param state true - сессия активна, false - сессия удалена
+     */
+    void sessionState(FileSystemTerminalToken token, boolean state);
+
+
+    /**
+     * Метод вызываемый при изменении или запросе текущей директории.
+     * Обязательный ответ на команды: cd(...), wd(...).
      *
      * @param path путь
      */
-    void path(Path path);
+    void workingDirectory(String path);
 
 
     /**
-     * Текущая корневая директория (для файловых систем с несколькими корневыми директориями)
-     * @param root корневая директория
-     */
-    void root(Path root);
-
-
-    /**
-     * Список файлов
+     * Метод вызываемый при запросе списка файлов текущей директории.
+     * Обязательный ответ на команду ls(...).
      *
      * @param fileInfoList список файлов
-     * @param path         абсолютный путь к каталогу из которого собирается список
      */
-    void fileList(List<FileInfo> fileInfoList, Path path);
+    void listOfFiles(List<FileInfo> fileInfoList);
 
 
     /**
-     * В терминал добавлен файл
+     * Метод вызываемый при добавлении файла в файловую систему терминала.
+     *
      * @param path путь к добавленному файлу (в файловой системе терминала)
      */
-    void addFile(Path path);
+    void fileAdded(String path);
 
 
+    /**
+     * Метод вызываемый при копировании файла из локальной файловой системы в файловую систему терминала.
+     *
+     * @param sourcePath      полный путь к файлу локальной файловой системы (источник)
+     * @param destinationPath путь к файлу в файловой системе терминала (приёмник)
+     */
+    void putFile(String sourcePath, String destinationPath);
 
 
     /**

@@ -9,7 +9,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.layout.VBox;
 import org.msv.fm.fs.FileSystemLocation;
 import org.msv.fm.fs.jvm.JVMFileSystemTerminalOutput;
-import org.msv.fm.net.NettyServerFileSystemTerminalOutput;
+//import org.msv.fm.net.NettyServerFileSystemTerminalOutput;
 
 import java.net.URL;
 import java.nio.file.FileSystems;
@@ -44,7 +44,7 @@ public class MainController implements Initializable {
     private final JVMFileSystemTerminalOutput JVMTerminal = new JVMFileSystemTerminalOutput();
 
     // Терминал удалённой файловой системы сервера на Netty
-    private final NettyServerFileSystemTerminalOutput NSTerminal = new NettyServerFileSystemTerminalOutput(HOST, PORT);
+    //private final NettyServerFileSystemTerminalOutput NSTerminal = new NettyServerFileSystemTerminalOutput(HOST, PORT);
 
 
     @Override
@@ -56,12 +56,12 @@ public class MainController implements Initializable {
 
         List<FileSystemLocation> locations = new ArrayList<>();
 
-        List<Path> jvmRoots = JVMTerminal.roots();
+        List<String> jvmRoots = JVMTerminal.roots();
         jvmRoots.stream()
-                .map(p -> new FileSystemLocation(p.toString(), p.toString(), JVMTerminal))
+                .map(p -> new FileSystemLocation(p, p, JVMTerminal))
                 .forEach(locations::add);
 
-        locations.add(new FileSystemLocation("Cloud", "", NSTerminal));
+        //locations.add(new FileSystemLocation("Cloud", "~", NSTerminal));
 
 
         ///////////////////////////////////////////////////
@@ -108,11 +108,11 @@ public class MainController implements Initializable {
         // Сортировка источника и приёмника
         FilePanelController srcPC, dstPC;
 
-        if (leftPC.getSelectedFileName() != null) {
+        if (leftPC.isSelectedFile()) {
             srcPC = leftPC;
             dstPC = rightPC;
 
-        } else if (rightPC.getSelectedFileName() != null) {
+        } else if (rightPC.isSelectedFile()) {
             srcPC = rightPC;
             dstPC = leftPC;
 
@@ -124,30 +124,32 @@ public class MainController implements Initializable {
             return;
         }
 
+        // Копирование от источника к приёмнику
+        srcPC.copy(dstPC);
 
-        if (srcPC.getTerminal() == JVMTerminal) {
-            // Источник - локальная файловая система
+//        if (srcPC.getTerminal() == JVMTerminal) {
+//            // Источник - локальная файловая система
+//
+//            // Приёмник - любая другая файловая система
+//            Path src = srcPC.getCurrentPath().resolve(srcPC.getSelectedFileName());
+//            dstPC.copy(src);
+//        }
 
-            // Приёмник - любая другая файловая система
-            Path src = srcPC.getCurrentPath().resolve(srcPC.getSelectedFileName());
-            dstPC.copy(src);
-        }
-
-        else if (srcPC.getTerminal() == NSTerminal) {
-            // Источник - удалённая файловая система сервера на Netty
-
-            if (dstPC.getTerminal() == JVMTerminal) {
-                // Приёмник - локальная файловая система
-
-                srcPC.copyTo(dstPC);
-            }
-            else {
-                Alert alert = new Alert(Alert.AlertType.WARNING,
-                        "Между удалёнными файловыми системами копирование файлов запрещено!",
-                        ButtonType.OK);
-                alert.showAndWait();
-            }
-        }
+//        else if (srcPC.getTerminal() == NSTerminal) {
+//            // Источник - удалённая файловая система сервера на Netty
+//
+//            if (dstPC.getTerminal() == JVMTerminal) {
+//                // Приёмник - локальная файловая система
+//
+//                srcPC.copyTo(dstPC);
+//            }
+//            else {
+//                Alert alert = new Alert(Alert.AlertType.WARNING,
+//                        "Между удалёнными файловыми системами копирование файлов запрещено!",
+//                        ButtonType.OK);
+//                alert.showAndWait();
+//            }
+//        }
 
 
     }

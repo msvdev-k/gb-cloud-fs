@@ -27,9 +27,6 @@ public class FileServerInboundHandler extends SimpleChannelInboundHandler<Server
         // Обрабатываемый запрос
         AbstractRequest abstractRequest = session.getRequest();
 
-        // Токен
-        String token = session.getToken();
-
 
 
         // === ChangeDirectory ===
@@ -39,10 +36,10 @@ public class FileServerInboundHandler extends SimpleChannelInboundHandler<Server
             String dirName = request.getDirectoryName();
 
             if (session.changeDirectory(dirName)) {
-                ctx.writeAndFlush(new CurrentDirectory(token, session.getCurrentDirectory()));
+                ctx.writeAndFlush(new CurrentDirectory(abstractRequest, session.getCurrentDirectory()));
 
             } else {
-                ctx.writeAndFlush(new ChangeDirectoryError(token, "Error change directory to " + dirName));
+                ctx.writeAndFlush(new ChangeDirectoryError(abstractRequest, "Error change directory to " + dirName));
             }
 
 
@@ -51,7 +48,7 @@ public class FileServerInboundHandler extends SimpleChannelInboundHandler<Server
 
         } else if (abstractRequest instanceof WorkingDirectory) {
 
-            ctx.writeAndFlush(new CurrentDirectory(token, session.getCurrentDirectory()));
+            ctx.writeAndFlush(new CurrentDirectory(abstractRequest, session.getCurrentDirectory()));
 
 
 
@@ -59,13 +56,13 @@ public class FileServerInboundHandler extends SimpleChannelInboundHandler<Server
 
         } else if (abstractRequest instanceof GetListOfFiles) {
 
-            List<RemoteFileDescription> files = session.getFistOfFiles();
+            List<RemoteFileDescription> files = session.getListOfFiles();
 
             if (files != null) {
-                ctx.writeAndFlush(new ListOfFiles(token, files));
+                ctx.writeAndFlush(new ListOfFiles(abstractRequest, files));
 
             } else {
-                ctx.writeAndFlush(new GetListOfFilesError(token, "Error getting list of files in current directory"));
+                ctx.writeAndFlush(new GetListOfFilesError(abstractRequest, "Error getting list of files in current directory"));
             }
 
 
@@ -77,10 +74,10 @@ public class FileServerInboundHandler extends SimpleChannelInboundHandler<Server
             RemoteFileDescription newFileDescription = session.putFile(request.getFileDescription(), request.getData());
 
             if (newFileDescription != null) {
-                ctx.writeAndFlush(new FileAdded(token, newFileDescription));
+                ctx.writeAndFlush(new FileAdded(abstractRequest, session.getCurrentDirectory(), newFileDescription));
 
             } else {
-                ctx.writeAndFlush(new PutFileError(token, "Error writing file"));
+                ctx.writeAndFlush(new PutFileError(abstractRequest, "Error writing file"));
             }
 
 
@@ -89,13 +86,13 @@ public class FileServerInboundHandler extends SimpleChannelInboundHandler<Server
 
         } else if (abstractRequest instanceof GetFile request) {
 
-            FileContent fileContent = session.getFile(request.getFileName());
+            FileContent fileContent = session.getFile(request);
 
             if (fileContent != null) {
                 ctx.writeAndFlush(fileContent);
 
             } else {
-                ctx.writeAndFlush(new FileContentError(token, "File read error"));
+                ctx.writeAndFlush(new FileContentError(abstractRequest, "File read error"));
             }
 
 
@@ -107,10 +104,10 @@ public class FileServerInboundHandler extends SimpleChannelInboundHandler<Server
             RemoteFileDescription description = session.makeDirectory(request.getNewDirectoryName());
 
             if (description != null) {
-                ctx.writeAndFlush(new FileAdded(token, description));
+                ctx.writeAndFlush(new FileAdded(abstractRequest, session.getCurrentDirectory(), description));
 
             } else {
-                ctx.writeAndFlush(new MakeDirectoryError(token, "Directory creation error"));
+                ctx.writeAndFlush(new MakeDirectoryError(abstractRequest, "Directory creation error"));
             }
 
 
@@ -122,10 +119,10 @@ public class FileServerInboundHandler extends SimpleChannelInboundHandler<Server
             RemoteFileDescription description = session.remove(request.getFileName());
 
             if (description != null) {
-                ctx.writeAndFlush(new FileRemoved(token, description));
+                ctx.writeAndFlush(new FileRemoved(abstractRequest, description));
 
             } else {
-                ctx.writeAndFlush(new RemoveError(token, "Deletion error"));
+                ctx.writeAndFlush(new RemoveError(abstractRequest, "Deletion error"));
             }
 
 
@@ -137,10 +134,10 @@ public class FileServerInboundHandler extends SimpleChannelInboundHandler<Server
             RemoteFileDescription description = session.rename(request.getName(), request.getNewName());
 
             if (description != null) {
-                ctx.writeAndFlush(new FileRenamed(token, request.getName(), description));
+                ctx.writeAndFlush(new FileRenamed(abstractRequest, request.getName(), description));
 
             } else {
-                ctx.writeAndFlush(new RenameError(token, "Renaming error"));
+                ctx.writeAndFlush(new RenameError(abstractRequest, "Renaming error"));
             }
 
 

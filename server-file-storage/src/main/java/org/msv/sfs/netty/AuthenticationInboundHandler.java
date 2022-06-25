@@ -50,7 +50,7 @@ public class AuthenticationInboundHandler extends SimpleChannelInboundHandler<Ab
 
             if (authFlag) {
                 // Пользователь аутентифицирован
-                ctx.writeAndFlush(new ConnectionState(request.getToken(), true));
+                ctx.writeAndFlush(new ConnectionState(abstractRequest, true));
                 return;
             }
 
@@ -61,28 +61,28 @@ public class AuthenticationInboundHandler extends SimpleChannelInboundHandler<Ab
 
             if (id == null) {
                 // Аутентификация не удачная
-                ctx.writeAndFlush(new ConnectionState(request.getToken(), false));
+                ctx.writeAndFlush(new ConnectionState(abstractRequest, false));
             } else {
                 // Пользователь аутентифицирован
                 authFlag = true;
                 setRootDirectory(id);
-                ctx.writeAndFlush(new ConnectionState(request.getToken(), true));
+                ctx.writeAndFlush(new ConnectionState(abstractRequest, true));
             }
 
 
         // === CloseConnection ===
 
-        } else if (abstractRequest instanceof CloseConnection request) {
+        } else if (abstractRequest instanceof CloseConnection) {
             authFlag = false;
             root = null;
             sessions.clear();
-            ctx.writeAndFlush(new ConnectionState(request.getToken(), false));
+            ctx.writeAndFlush(new ConnectionState(abstractRequest, false));
 
 
         // === Проверка аутентификации ===
 
         } else if (!authFlag) {
-            ctx.writeAndFlush(new ConnectionState(abstractRequest.getToken(), false));
+            ctx.writeAndFlush(new ConnectionState(abstractRequest, false));
 
 
         // === OpenSession ===
@@ -95,7 +95,7 @@ public class AuthenticationInboundHandler extends SimpleChannelInboundHandler<Ab
                 sessions.put(token, new ServerSession(token, root));
             }
 
-            ctx.writeAndFlush(new SessionSate(token, true));
+            ctx.writeAndFlush(new SessionSate(abstractRequest, true));
 
 
         // === CloseSession ===
@@ -104,7 +104,7 @@ public class AuthenticationInboundHandler extends SimpleChannelInboundHandler<Ab
 
             String token = request.getToken();
             sessions.remove(token);
-            ctx.writeAndFlush(new SessionSate(token, false));
+            ctx.writeAndFlush(new SessionSate(abstractRequest, false));
 
 
         // === Выполняемые сервером команды ===
@@ -114,7 +114,7 @@ public class AuthenticationInboundHandler extends SimpleChannelInboundHandler<Ab
             String token = abstractRequest.getToken();
 
             if (!sessions.containsKey(token)) {
-                ctx.writeAndFlush(new SessionSate(token, false));
+                ctx.writeAndFlush(new SessionSate(abstractRequest, false));
                 return;
             }
 

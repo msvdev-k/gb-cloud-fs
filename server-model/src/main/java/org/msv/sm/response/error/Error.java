@@ -1,5 +1,6 @@
 package org.msv.sm.response.error;
 
+import org.msv.sm.request.AbstractRequest;
 import org.msv.sm.response.AbstractResponse;
 
 
@@ -12,11 +13,10 @@ public abstract class Error extends AbstractResponse {
     private final String errorMessage;
 
 
-    public Error(String token, String errorMessage) {
-        super(token);
+    public Error(AbstractRequest request, String errorMessage) {
+        super(request);
         this.errorMessage = errorMessage;
     }
-
 
     public String getErrorMessage() {
         return errorMessage;

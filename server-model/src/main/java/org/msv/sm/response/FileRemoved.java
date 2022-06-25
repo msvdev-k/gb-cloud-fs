@@ -1,6 +1,7 @@
 package org.msv.sm.response;
 
 import org.msv.sm.RemoteFileDescription;
+import org.msv.sm.request.AbstractRequest;
 
 
 /**
@@ -12,11 +13,10 @@ public class FileRemoved extends AbstractResponse {
     private final RemoteFileDescription fileDescription;
 
 
-    public FileRemoved(String token, RemoteFileDescription fileDescription) {
-        super(token);
+    public FileRemoved(AbstractRequest request, RemoteFileDescription fileDescription) {
+        super(request);
         this.fileDescription = fileDescription;
     }
-
 
     /**
      * Описание удалённого файла или каталога.

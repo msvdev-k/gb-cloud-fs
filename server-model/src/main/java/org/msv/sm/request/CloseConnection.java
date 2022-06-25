@@ -5,7 +5,7 @@ package org.msv.sm.request;
  * Запрос на отключение от удалённого файлового сервера.
  */
 public class CloseConnection extends AbstractRequest {
-    public CloseConnection(String token) {
-        super(token);
+    public CloseConnection(int requestID, String token) {
+        super(requestID, token);
     }
 }

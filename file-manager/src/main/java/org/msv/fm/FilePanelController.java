@@ -103,7 +103,6 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
 
         // Обработка кликов мыши
         filesTable.setOnMouseClicked(this::onMouseClicked);
-
     }
 
 
@@ -119,6 +118,13 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
     @Override
     public void connectionState(boolean state) {
 
+        if (state) {
+            selectDiskAction(null);
+
+        } else {
+            clear();
+            error("Необходимо подключиться к удалённому серверу");
+        }
     }
 
 
@@ -194,7 +200,7 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
 
         clear();
 
-        if (this.terminal != null) {
+        if (this.terminal != null && this.token != null) {
             this.terminal.stopSession(token);
         }
 

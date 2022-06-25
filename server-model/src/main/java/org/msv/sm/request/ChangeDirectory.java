@@ -14,11 +14,10 @@ public class ChangeDirectory extends AbstractRequest {
     private final String directoryName;
 
 
-    public ChangeDirectory(String token, String directoryName) {
-        super(token);
+    public ChangeDirectory(int requestID, String token, String directoryName) {
+        super(requestID, token);
         this.directoryName = directoryName;
     }
-
 
     public String getDirectoryName() {
         return directoryName;

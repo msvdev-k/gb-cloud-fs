@@ -1,6 +1,7 @@
 package org.msv.sm.response;
 
 import org.msv.sm.RemoteFileDescription;
+import org.msv.sm.request.AbstractRequest;
 
 import java.util.List;
 
@@ -13,11 +14,10 @@ public class ListOfFiles extends AbstractResponse {
     private final List<RemoteFileDescription> files;
 
 
-    public ListOfFiles(String token, List<RemoteFileDescription> files) {
-        super(token);
+    public ListOfFiles(AbstractRequest request, List<RemoteFileDescription> files) {
+        super(request);
         this.files = files;
     }
-
 
     public List<RemoteFileDescription> getFiles() {
         return files;

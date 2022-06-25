@@ -10,12 +10,11 @@ public class OpenConnection extends AbstractRequest {
     private final String password;
 
 
-    public OpenConnection(String token, String login, String password) {
-        super(token);
+    public OpenConnection(int requestID, String token, String login, String password) {
+        super(requestID, token);
         this.login = login;
         this.password = password;
     }
-
 
     public String getLogin() {
         return login;

@@ -14,12 +14,11 @@ public class Rename extends AbstractRequest {
     private final String newName;
 
 
-    public Rename(String token, String name, String newName) {
-        super(token);
+    public Rename(int requestID, String token, String name, String newName) {
+        super(requestID, token);
         this.name = name;
         this.newName = newName;
     }
-
 
     public String getName() {
         return name;

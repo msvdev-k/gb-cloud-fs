@@ -12,11 +12,10 @@ public class GetFile extends AbstractRequest {
     private final String fileName;
 
 
-    public GetFile(String token, String fileName) {
-        super(token);
+    public GetFile(int requestID, String token, String fileName) {
+        super(requestID, token);
         this.fileName = fileName;
     }
-
 
     public String getFileName() {
         return fileName;

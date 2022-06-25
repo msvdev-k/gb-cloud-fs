@@ -1,6 +1,7 @@
 package org.msv.sm.response;
 
 import org.msv.sm.RemoteFileDescription;
+import org.msv.sm.request.AbstractRequest;
 
 
 /**
@@ -8,14 +9,15 @@ import org.msv.sm.RemoteFileDescription;
  */
 public class FileAdded extends AbstractResponse {
 
+    private final String directoryPath;
     private final RemoteFileDescription fileDescription;
 
 
-    public FileAdded(String token, RemoteFileDescription fileDescription) {
-        super(token);
+    public FileAdded(AbstractRequest request, String directoryPath, RemoteFileDescription fileDescription) {
+        super(request);
+        this.directoryPath = directoryPath;
         this.fileDescription = fileDescription;
     }
-
 
     /**
      * Получит описание добавленного файла.
@@ -24,4 +26,11 @@ public class FileAdded extends AbstractResponse {
         return fileDescription;
     }
 
+
+    /**
+     * Путь к директории в которой был изменён файл.
+     */
+    public String getDirectoryPath() {
+        return directoryPath;
+    }
 }

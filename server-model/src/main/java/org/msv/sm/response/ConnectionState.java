@@ -1,6 +1,8 @@
 package org.msv.sm.response;
 
 
+import org.msv.sm.request.AbstractRequest;
+
 /**
  * Ответ сервера о состоянии подключения (аутентификации).
  *
@@ -12,11 +14,10 @@ public class ConnectionState extends AbstractResponse {
     private final boolean connection;
 
 
-    public ConnectionState(String token, boolean connection) {
-        super(token);
+    public ConnectionState(AbstractRequest request, boolean connection) {
+        super(request);
         this.connection = connection;
     }
-
 
     /**
      * true - клиент аутентифицирован

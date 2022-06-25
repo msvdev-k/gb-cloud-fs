@@ -16,6 +16,9 @@
         <Menu text="Файл">
             <MenuItem text="Выход" onAction="#btmExitAction"/>
         </Menu>
+        <Menu text="Сервер">
+            <MenuItem text="Подключиться" onAction="#btmServerConnectionAction"/>
+        </Menu>
     </MenuBar>
 
 

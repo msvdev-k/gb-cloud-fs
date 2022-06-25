@@ -6,7 +6,7 @@ package org.msv.sm.request;
  * Команда выполняется для сессии, определённой своим токеном.
  */
 public class GetListOfFiles extends AbstractRequest {
-    public GetListOfFiles(String token) {
-        super(token);
+    public GetListOfFiles(int requestID, String token) {
+        super(requestID, token);
     }
 }

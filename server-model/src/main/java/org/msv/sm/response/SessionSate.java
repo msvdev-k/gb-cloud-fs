@@ -1,6 +1,8 @@
 package org.msv.sm.response;
 
 
+import org.msv.sm.request.AbstractRequest;
+
 /**
  * Ответ сервера об открытии (закрытии) сессии.
  * В рамках одного соединения можно открыть несколько сессий.
@@ -14,11 +16,10 @@ public class SessionSate extends AbstractResponse {
     private final boolean open;
 
 
-    public SessionSate(String token, boolean open) {
-        super(token);
+    public SessionSate(AbstractRequest request, boolean open) {
+        super(request);
         this.open = open;
     }
-
 
     /**
      * true - сессия открыта.

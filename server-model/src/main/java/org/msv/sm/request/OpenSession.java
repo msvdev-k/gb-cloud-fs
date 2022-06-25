@@ -7,7 +7,7 @@ package org.msv.sm.request;
  * Каждая сессия идентифицируется своим токеном.
  */
 public class OpenSession extends AbstractRequest {
-    public OpenSession(String token) {
-        super(token);
+    public OpenSession(int requestID, String token) {
+        super(requestID, token);
     }
 }

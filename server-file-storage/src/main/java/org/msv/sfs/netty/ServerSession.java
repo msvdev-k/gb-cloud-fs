@@ -2,6 +2,7 @@ package org.msv.sfs.netty;
 
 import org.msv.sm.RemoteFileDescription;
 import org.msv.sm.request.AbstractRequest;
+import org.msv.sm.request.GetFile;
 import org.msv.sm.response.FileContent;
 
 import java.io.IOException;
@@ -51,7 +52,7 @@ class ServerSession {
         Path absolutePath;
 
         if (path.startsWith("~")) {
-            path = path.replaceFirst("~", root.toString());
+            path = path.replaceFirst("~", root.toString().replace("\\", "/"));
             absolutePath = Path.of(path).normalize();
 
         } else {
@@ -129,7 +130,7 @@ class ServerSession {
      *
      * @return список файлов; пустой список если файлов нет; null если список не удалось получить.
      */
-    public List<RemoteFileDescription> getFistOfFiles() {
+    public List<RemoteFileDescription> getListOfFiles() {
 
         if (Files.exists(currentDirectory)) {
 
@@ -190,12 +191,16 @@ class ServerSession {
     /**
      * Получить контент запрашиваемого файла.
      *
-     * @param fileName название запрашиваемого файла
+     * @param request запрос на получение файла
      * @return содержание запрашиваемого файла, либо null в случае возникновении ошибки
      */
-    public FileContent getFile(String fileName) {
+    public FileContent getFile(GetFile request) {
 
-        Path file = getAbsolutePath(fileName);
+        if (!request.getToken().equals(token)) {
+            return null;
+        }
+
+        Path file = getAbsolutePath(request.getFileName());
 
         if (file != null &&
                 !Files.isDirectory(file) &&
@@ -207,7 +212,7 @@ class ServerSession {
                 RemoteFileDescription fileDescription = ServerFileInfo.get(file);
                 byte[] data = Files.readAllBytes(file);
 
-                fileContent = new FileContent(token, fileDescription, data);
+                fileContent = new FileContent(request, fileDescription, data);
 
             } catch (IOException e) {
                 e.printStackTrace();

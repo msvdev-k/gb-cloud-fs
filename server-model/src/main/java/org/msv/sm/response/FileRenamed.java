@@ -1,6 +1,7 @@
 package org.msv.sm.response;
 
 import org.msv.sm.RemoteFileDescription;
+import org.msv.sm.request.AbstractRequest;
 
 
 /**
@@ -13,12 +14,11 @@ public class FileRenamed extends AbstractResponse {
     private final RemoteFileDescription fileDescription;
 
 
-    public FileRenamed(String token, String oldName, RemoteFileDescription fileDescription) {
-        super(token);
+    public FileRenamed(AbstractRequest request, String oldName, RemoteFileDescription fileDescription) {
+        super(request);
         this.oldName = oldName;
         this.fileDescription = fileDescription;
     }
-
 
     /**
      * Старое название файла или каталога.

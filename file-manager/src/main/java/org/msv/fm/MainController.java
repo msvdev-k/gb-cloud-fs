@@ -9,12 +9,9 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.layout.VBox;
 import org.msv.fm.fs.FileSystemLocation;
 import org.msv.fm.fs.jvm.JVMFileSystemTerminalOutput;
-//import org.msv.fm.net.NettyServerFileSystemTerminalOutput;
+import org.msv.fm.net.NettyServerFileSystemTerminalOutput;
 
 import java.net.URL;
-import java.nio.file.FileSystems;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -27,9 +24,6 @@ public class MainController implements Initializable {
 
     private static final String HOST = "localhost";
     private static final int PORT = 8189;
-
-    private static final String DEFAULT_ROOT = FileSystems.getDefault().getRootDirectories().iterator().next().toString();
-    private static final String CLOUD_ROOT = "Cloud:" + FileSystems.getDefault().getSeparator();
 
     @FXML
     public VBox leftFilesTable;
@@ -44,11 +38,13 @@ public class MainController implements Initializable {
     private final JVMFileSystemTerminalOutput JVMTerminal = new JVMFileSystemTerminalOutput();
 
     // Терминал удалённой файловой системы сервера на Netty
-    //private final NettyServerFileSystemTerminalOutput NSTerminal = new NettyServerFileSystemTerminalOutput(HOST, PORT);
+    private final NettyServerFileSystemTerminalOutput NSTerminal = new NettyServerFileSystemTerminalOutput(HOST, PORT);
 
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+
+        NSTerminal.setErrorListener(this::alertError);
 
         ///////////////////////////////////////////////////
         // Настройка списка доступных файловых систем (локаций)
@@ -61,8 +57,7 @@ public class MainController implements Initializable {
                 .map(p -> new FileSystemLocation(p, p, JVMTerminal))
                 .forEach(locations::add);
 
-        //locations.add(new FileSystemLocation("Cloud", "~", NSTerminal));
-
+        locations.add(new FileSystemLocation("Cloud", "~", NSTerminal));
 
         ///////////////////////////////////////////////////
         // Настройка файловых панелей
@@ -87,8 +82,10 @@ public class MainController implements Initializable {
 
 
     private void alertError(String errorMessage) {
-        Alert alert = new Alert(Alert.AlertType.ERROR, errorMessage, ButtonType.OK);
-        alert.showAndWait();
+        Platform.runLater(()->{
+            Alert alert = new Alert(Alert.AlertType.ERROR, errorMessage, ButtonType.OK);
+            alert.showAndWait();
+        });
     }
 
 
@@ -126,31 +123,12 @@ public class MainController implements Initializable {
 
         // Копирование от источника к приёмнику
         srcPC.copy(dstPC);
-
-//        if (srcPC.getTerminal() == JVMTerminal) {
-//            // Источник - локальная файловая система
-//
-//            // Приёмник - любая другая файловая система
-//            Path src = srcPC.getCurrentPath().resolve(srcPC.getSelectedFileName());
-//            dstPC.copy(src);
-//        }
-
-//        else if (srcPC.getTerminal() == NSTerminal) {
-//            // Источник - удалённая файловая система сервера на Netty
-//
-//            if (dstPC.getTerminal() == JVMTerminal) {
-//                // Приёмник - локальная файловая система
-//
-//                srcPC.copyTo(dstPC);
-//            }
-//            else {
-//                Alert alert = new Alert(Alert.AlertType.WARNING,
-//                        "Между удалёнными файловыми системами копирование файлов запрещено!",
-//                        ButtonType.OK);
-//                alert.showAndWait();
-//            }
-//        }
+    }
 
 
+
+    public void btmServerConnectionAction(ActionEvent actionEvent) {
+        System.out.println("Метод btmServerConnectionAction() - " + Thread.currentThread().getName());
+        NSTerminal.connect("user1", "pass1", null);
     }
 }

@@ -6,7 +6,7 @@ package org.msv.sm.request;
  * Команда выполняется для сессии, определённой своим токеном.
  */
 public class WorkingDirectory extends AbstractRequest {
-    public WorkingDirectory(String token) {
-        super(token);
+    public WorkingDirectory(int requestID, String token) {
+        super(requestID, token);
     }
 }

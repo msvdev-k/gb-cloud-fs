@@ -1,6 +1,7 @@
 package org.msv.sm.response;
 
 import org.msv.sm.RemoteFileDescription;
+import org.msv.sm.request.AbstractRequest;
 
 
 /**
@@ -12,12 +13,11 @@ public class FileContent extends AbstractResponse {
     private final byte[] data;
 
 
-    public FileContent(String token, RemoteFileDescription fileDescription, byte[] data) {
-        super(token);
+    public FileContent(AbstractRequest request, RemoteFileDescription fileDescription, byte[] data) {
+        super(request);
         this.fileDescription = fileDescription;
         this.data = data;
     }
-
 
     public RemoteFileDescription getFileDescription() {
         return fileDescription;

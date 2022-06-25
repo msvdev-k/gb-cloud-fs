@@ -11,11 +11,10 @@ public class MakeDirectory extends AbstractRequest {
     private final String newDirectoryName;
 
 
-    public MakeDirectory(String token, String newDirectoryName) {
-        super(token);
+    public MakeDirectory(int requestID, String token, String newDirectoryName) {
+        super(requestID, token);
         this.newDirectoryName = newDirectoryName;
     }
-
 
     public String getNewDirectoryName() {
         return newDirectoryName;

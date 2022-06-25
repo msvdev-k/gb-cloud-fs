@@ -21,8 +21,8 @@ public class PutFile extends AbstractRequest {
     private final byte[] data;
 
 
-    public PutFile(String token, RemoteFileDescription fileDescription, byte[] data) {
-        super(token);
+    public PutFile(int requestID, String token, RemoteFileDescription fileDescription, byte[] data) {
+        super(requestID, token);
         this.fileDescription = fileDescription;
         this.data = data;
     }
@@ -34,8 +34,8 @@ public class PutFile extends AbstractRequest {
      * @param source полный путь к копируемому файлу.
      * @param newFileName новое название файла, либо null если название не изменяется.
      */
-    public PutFile(String token, Path source, String newFileName) {
-        super(token);
+    public PutFile(int requestID, String token, Path source, String newFileName) {
+        super(requestID, token);
 
         try {
 

@@ -1,17 +1,20 @@
 package org.msv.fm.net;
 
 import org.msv.fm.fs.*;
-import org.msv.sm.*;
 import org.msv.sm.request.*;
-import org.msv.sm.response.AbstractResponse;
+import org.msv.sm.response.*;
+import org.msv.sm.response.error.Error;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
+
+
 
 
 /**
@@ -22,12 +25,12 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
     /**
      * Список сессий. Ключ - токен, значение - экземпляр класса сессии.
      */
-    private final Map<String, Session> sessions = new HashMap<>();
+    private final Map<String, NettyServerFileSystemTerminalSession> sessions = new HashMap<>();
 
     /**
      * Соединение с удалённым сервером
      */
-    private Network network;
+    private final Network network;
 
 
     // Флаг аутентификации
@@ -36,7 +39,12 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
 
     public NettyServerFileSystemTerminalOutput(String host, int port) {
         this.network = new Network(host, port);
-        this.network.setReadConsumer(this::serverMessageParser);
+        this.network.setResponseConsumer(this::serverResponseParser);
+        this.network.setErrorResponseConsumer(this::errorResponseParser);
+
+        // Сессия, управляющая подключение к удалённому серверу (аутентификацией)
+        NettyServerFileSystemTerminalSession connectionSession = new NettyServerFileSystemTerminalSession("0");
+        sessions.put("0", connectionSession);
     }
 
 
@@ -44,7 +52,19 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
     public void connect(String login, String password, FileSystemTerminalInput input) {
         network.start();
         if (network.isStart()) {
-            network.write(new OpenConnection("", login, password));
+
+            NettyServerFileSystemTerminalSession session = sessions.get("0");
+            int requestID = session.getRequestID();
+
+            AbstractRequest request = new OpenConnection(requestID, "0", login, password);
+
+            if (input == null) {
+                session.putRequest(requestID, request, null);
+            } else {
+                session.putRequest(requestID, request, List.of(input));
+            }
+
+            network.write(request);
 
         } else {
             input.error("Error connecting to remote server");
@@ -52,35 +72,30 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
     }
 
 
-//    @Override
-//    public void connectionState(FileSystemTerminalInput input) {
-//        input.connectionState(authFlag);
-//    }
-
-
     @Override
     public void closeConnection() {
-        if (network.isStart()) {
-            network.write(new CloseConnection(""));
-        }
+//        if (network.isStart()) {
+//            network.write(new CloseConnection(""));
+//        }
     }
 
 
     @Override
     public void startSession(FileSystemTerminalInput input, FileSystemLocation location) {
-
-        if (network.isStart()) {
+        if (network.isStart() && authFlag) {
 
             FileSystemTerminalToken token = new FileSystemTerminalToken();
 
-            Session session = new Session();
-            session.output = input;
-            session.currentDir = Path.of(location.getRoot());
-            session.root = Path.of(location.getRoot());
-
+            NettyServerFileSystemTerminalSession session = new NettyServerFileSystemTerminalSession(token.toString());
             sessions.put(token.toString(), session);
 
-            network.write(new OpenSession(token.toString()));
+            session.setOutput(input);
+            int requestID = session.getRequestID();
+            AbstractRequest request = new OpenSession(requestID, session.getToken());
+
+            session.putRequest(requestID, request, List.of(token));
+
+            network.write(request);
 
         } else {
             input.connectionState(false);
@@ -90,164 +105,268 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
 
     @Override
     public void stopSession(FileSystemTerminalToken token) {
-        network.write(new CloseSession(token.toString()));
+        if (sessions.containsKey(token.toString())) {
+            NettyServerFileSystemTerminalSession session = sessions.get(token.toString());
+
+            if (network.isStart() && authFlag) {
+                int requestID = session.getRequestID();
+                AbstractRequest request = new CloseSession(requestID, session.getToken());
+                session.putRequest(requestID, request, null);
+
+                network.write(request);
+
+            } else {
+                session.getOutput().connectionState(false);
+            }
+        }
     }
 
 
     @Override
     public void cd(FileSystemTerminalToken token, String path) {
-        if (!sessions.containsKey(token.toString())) {
+        if (sessions.containsKey(token.toString())) {
+            NettyServerFileSystemTerminalSession session = sessions.get(token.toString());
+
+            if (network.isStart() && authFlag) {
+                int requestID = session.getRequestID();
+                AbstractRequest request = new ChangeDirectory(requestID, session.getToken(), path);
+                session.putRequest(requestID, request, null);
+
+                network.write(request);
+
+            } else {
+                session.getOutput().connectionState(false);
+            }
+        } else {
             throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
         }
-        network.write(new ChangeDirectory(token.toString(), path));
     }
 
 
     @Override
     public void wd(FileSystemTerminalToken token) {
-        if (!sessions.containsKey(token.toString())) {
+        if (sessions.containsKey(token.toString())) {
+            NettyServerFileSystemTerminalSession session = sessions.get(token.toString());
+
+            if (network.isStart() && authFlag) {
+                int requestID = session.getRequestID();
+                AbstractRequest request = new WorkingDirectory(requestID, session.getToken());
+                session.putRequest(requestID, request, null);
+
+                network.write(request);
+
+            } else {
+                session.getOutput().connectionState(false);
+            }
+        } else {
             throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
         }
-        network.write(new WorkingDirectory(token.toString()));
     }
 
 
     @Override
     public void ls(FileSystemTerminalToken token) {
-        if (!sessions.containsKey(token.toString())) {
+        if (sessions.containsKey(token.toString())) {
+            NettyServerFileSystemTerminalSession session = sessions.get(token.toString());
+
+            if (network.isStart() && authFlag) {
+                int requestID = session.getRequestID();
+                AbstractRequest request = new GetListOfFiles(requestID, session.getToken());
+                session.putRequest(requestID, request, null);
+
+                network.write(request);
+
+            } else {
+                session.getOutput().connectionState(false);
+            }
+        } else {
             throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
         }
-        network.write(new GetListOfFiles(token.toString()));
     }
 
 
     @Override
     public void put(FileSystemTerminalToken token, String sourcePath, String destinationPath) {
+        if (sessions.containsKey(token.toString())) {
+            NettyServerFileSystemTerminalSession session = sessions.get(token.toString());
 
-        if (!sessions.containsKey(token.toString())) {
+            if (network.isStart() && authFlag) {
+                int requestID = session.getRequestID();
+
+                try {
+                    AbstractRequest request = new PutFile(requestID, session.getToken(), Path.of(sourcePath), destinationPath);
+                    session.putRequest(requestID, request, null);
+
+                    network.write(request);
+
+                } catch (Exception e) {
+                    session.getOutput().error("Ошибка копирования файла");
+                    e.printStackTrace();
+                }
+            } else {
+                session.getOutput().connectionState(false);
+            }
+        } else {
             throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
-        }
-
-        Session session = sessions.get(token.toString());
-
-        try {
-            PutFile file = new PutFile(token.toString(), Path.of(sourcePath), destinationPath);
-            network.write(file);
-
-        } catch (Exception e) {
-            session.output.error("Ошибка копирования файла");
-            e.printStackTrace();
         }
     }
 
 
     @Override
     public void copy(FileSystemTerminalToken token, String sourcePath, FileSystemTerminalInput destinationTerminalInput, String destinationPath) {
+        if (sessions.containsKey(token.toString())) {
+            NettyServerFileSystemTerminalSession session = sessions.get(token.toString());
 
+            if (network.isStart() && authFlag) {
+                int requestID = session.getRequestID();
+                AbstractRequest request = new GetFile(requestID, session.getToken(), sourcePath);
+                session.putRequest(requestID, request, List.of(destinationTerminalInput, destinationPath));
 
+                network.write(request);
 
-    }
-
-    /**
-     * Скопировать файл из файловой системы терминала на локальную файловую систему
-     *
-     * @param token           токен сессии
-     * @param sourcePath      путь к файлу в файловой системе терминала (источник)
-     * @param destinationPath полный путь к файлу локальной файловой системы (приёмник)
-     */
-    @Override
-    public void get(FileSystemTerminalToken token, String sourcePath, String destinationPath, FileSystemTerminalInput destinationTerminal) {
-
-        if (!sessions.containsKey(token.toString())) {
+            } else {
+                session.getOutput().connectionState(false);
+            }
+        } else {
             throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
         }
 
-        Session session = sessions.get(token.toString());
-
-        session.getFilePath = Path.of(destinationPath);
-        session.getFileTerminal = destinationTerminal;
-
-        network.write(new GetRemoteFileMessage(token.toString(), sourcePath));
     }
-
 
 
     /**
      * Метод получающий сообщения от сервера
      *
-     * @param message сообщение от сервера
+     * @param abstractResponse сообщение от сервера
      */
-    private void serverMessageParser(AbstractResponse message) {
+    private void serverResponseParser(AbstractResponse abstractResponse) {
 
-        // === Аутентификация ===
-        if (message instanceof ConnectionRequest request) {
-            authFlag = request.isConnect();
+        // Если токен не актуальный, то выход
+        if (!sessions.containsKey(abstractResponse.getToken())) return;
+
+
+        String token = abstractResponse.getToken();
+        int requestID = abstractResponse.getRequestID();
+
+        // Сессия, запрос на который пришёл ответ и параметры запроса
+        NettyServerFileSystemTerminalSession session = sessions.get(token);
+        AbstractRequest request = session.getRequest(requestID);
+        List<Object> requestParameters = session.getRequestParameters(requestID);
+
+
+
+
+        // === ConnectionState (состояние аутентификации) ===
+
+        if (abstractResponse instanceof ConnectionState response) {
+
+            authFlag = response.isConnection();
+
+            if (requestParameters != null) {
+                FileSystemTerminalInput input = (FileSystemTerminalInput) requestParameters.get(0);
+                input.connectionState(authFlag);
+            }
+
+            session.removeRequest(requestID);
         }
 
 
-        if (!sessions.containsKey(message.getToken())) {
-            System.out.println(message.getToken());
-            return;
+
+
+        // === SessionSate (открытие/закрытие сессии) ===
+
+        else if (abstractResponse instanceof SessionSate response) {
+
+            if (requestParameters != null) {
+                FileSystemTerminalToken terminalToken = (FileSystemTerminalToken) requestParameters.get(0);
+                session.getOutput().sessionState(terminalToken, response.isOpen());
+            }
+            session.removeRequest(requestID);
         }
 
-        Session session = sessions.get(message.getToken());
 
 
-        if (!authFlag) {
-            session.output.error("Для удалённого подключения необходимо ввести логин и пароль");
-            return;
+
+        // === SessionSate (открытие/закрытие сессии) ===
+
+        else if (abstractResponse instanceof CurrentDirectory response) {
+
+            session.getOutput().workingDirectory(response.getPath());
+            session.removeRequest(requestID);
         }
 
 
-        // === RemoteDirectoryRequest ===
-        if (message instanceof RemoteDirectoryRequest request) {
-            session.output.path(Paths.get(request.getPath()));
 
 
-            // === RemoteFilesListRequest ===
-        } else if (message instanceof RemoteFilesListRequest request) {
-            List<FileInfo> fileInfoList = request.getFiles().stream()
+        // === ListOfFiles (список файлов текущей директории) ===
+
+        else if (abstractResponse instanceof ListOfFiles response) {
+
+            List<FileInfo> fileInfoList = response.getFiles().stream()
                     .map(NettyServerFileInfo::get).toList();
 
-            session.output.fileList(fileInfoList, Paths.get(request.getPath()));
+            session.getOutput().listOfFiles(fileInfoList);
+            session.removeRequest(requestID);
+        }
 
 
-            // === AddFileRequest ===
-        } else if (message instanceof AddFileRequest request) {
-            session.output.addFile(Path.of(request.getPath()));
 
 
-            // === FileDataMessage ===
-        } else if (message instanceof FileDataMessage request) {
+        // === FileAdded (добавление нового файла или каталога) ===
 
-            if (session.getFilePath == null || session.getFileTerminal == null) return;
+        else if (abstractResponse instanceof FileAdded response) {
+
+            session.getOutput().fileAdded(
+                    Path.of(response.getDirectoryPath())
+                        .resolve(response.getFileDescription().getName()).toString());
+            session.removeRequest(requestID);
+        }
+
+
+
+
+        // === FileContent (получение файла со стороны сервера) ===
+
+        else if (abstractResponse instanceof FileContent response) {
+
+
+            FileSystemTerminalInput destinationTerminalInput = (FileSystemTerminalInput) requestParameters.get(0);
+            String destinationPath = (String) requestParameters.get(1);
 
             try {
-                Files.write(session.getFilePath, request.getData());
+                File tmpFile = File.createTempFile("upload-", "");
+                tmpFile.deleteOnExit();
 
-                session.getFileTerminal.addFile(session.getFilePath);
-                session.getFilePath = null;
-                session.getFileTerminal = null;
+                Files.write(tmpFile.toPath(), response.getData());
+
+                destinationTerminalInput.putFile(tmpFile.toString(), destinationPath);
+
+                session.removeRequest(requestID);
 
             } catch (IOException e) {
                 e.printStackTrace();
+                session.getOutput().error("Ошибка получения файла с сервера");
             }
+
+
         }
+
     }
 
 
+    private void errorResponseParser(Error error) {
+
+
+    }
 
 
     /**
-     * Получить текущую корневую директорию
-     * Метод неопределённы для серверной файловой системы
-     *
-     * @param token токен сессии
+     * Установить обработчик уведомление об ошибках.
      */
-    @Override
-    public void root(FileSystemTerminalToken token) {
-
+    public void setErrorListener(Consumer<String> listener) {
+        network.setErrorConsumer(listener);
     }
+
 
     /**
      * Список доступных корневых директорий для данной файловой системы
@@ -259,24 +378,5 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
     public List<String> roots() {
         return null;
     }
-
-
-    /**
-     * Описание текущей сессии
-     */
-    private class Session {
-        public FileSystemTerminalInput output;
-        public Path root;
-        public Path currentDir;
-
-        // Последняя отправляемая команда на сервер
-        public AbstractRequest lastRequest;
-
-        // Путь для сохранения полученного файла и терминал для уведомления о сохранении
-        public Path getFilePath;
-        public FileSystemTerminalInput getFileTerminal;
-
-    }
-
 
 }

@@ -16,6 +16,7 @@ import java.util.function.Consumer;
  */
 public class Network {
 
+    private Socket socket;
     private ObjectDecoderInputStream in;
     private ObjectEncoderOutputStream out;
 
@@ -27,10 +28,10 @@ public class Network {
     private boolean startFlag = false;
 
     // Функция принимающая сообщение от сервера
-    private Consumer<AbstractResponse> readConsumer;
+    private Consumer<AbstractResponse> responseConsumer;
 
     // Функция принимающая сообщение об ошибке от сервера
-    private Consumer<Error> errorReadConsumer;
+    private Consumer<Error> errorResponseConsumer;
 
     // Функция принимающая сообщение об ошибке (для информирования пользователя)
     private Consumer<String> errorConsumer;
@@ -51,7 +52,7 @@ public class Network {
         if (startFlag) return;
 
         try {
-            Socket socket = new Socket(host, port);
+            socket = new Socket(host, port);
             in = new ObjectDecoderInputStream(socket.getInputStream());
             out = new ObjectEncoderOutputStream(socket.getOutputStream());
 
@@ -92,18 +93,18 @@ public class Network {
                 Object object = in.readObject();
 
                 if (object instanceof Error error) {
-                    if (errorReadConsumer != null) {
-                        errorReadConsumer.accept(error);
+                    if (errorResponseConsumer != null) {
+                        errorResponseConsumer.accept(error);
                     }
 
                 } else if (object instanceof AbstractResponse response) {
-                    if (readConsumer != null) {
-                        readConsumer.accept(response);
+                    if (responseConsumer != null) {
+                        responseConsumer.accept(response);
                     }
 
                 } else {
                     if (errorConsumer != null) {
-                        errorConsumer.accept("Server message error");
+                        errorConsumer.accept("Server response error");
                     }
                 }
             }
@@ -118,6 +119,8 @@ public class Network {
                 }
                 System.out.println("Connection lost");
             }
+            e.printStackTrace();
+            System.out.println(e);
 
         } finally {
 
@@ -127,6 +130,7 @@ public class Network {
             try {
                 in.close();
                 out.close();
+                socket.close();
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -138,16 +142,16 @@ public class Network {
     /**
      * Установка функции, принимающей сообщения от сервера
      */
-    public void setReadConsumer(Consumer<AbstractResponse> readConsumer) {
-        this.readConsumer = readConsumer;
+    public void setResponseConsumer(Consumer<AbstractResponse> responseConsumer) {
+        this.responseConsumer = responseConsumer;
     }
 
 
     /**
      * Установить функцию, принимающую сообщения об ошибках со стороны сервера
      */
-    public void setErrorReadConsumer(Consumer<Error> errorReadConsumer) {
-        this.errorReadConsumer = errorReadConsumer;
+    public void setErrorResponseConsumer(Consumer<Error> errorResponseConsumer) {
+        this.errorResponseConsumer = errorResponseConsumer;
     }
 
 

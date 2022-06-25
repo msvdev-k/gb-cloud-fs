@@ -14,11 +14,10 @@ public class Remove extends AbstractRequest {
     private final String fileName;
 
 
-    public Remove(String token, String fileName) {
-        super(token);
+    public Remove(int requestID, String token, String fileName) {
+        super(requestID, token);
         this.fileName = fileName;
     }
-
 
     public String getFileName() {
         return fileName;

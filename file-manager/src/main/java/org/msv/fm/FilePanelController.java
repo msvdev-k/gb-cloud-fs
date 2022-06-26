@@ -278,6 +278,22 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
 
 
     @Override
+    public void fileRenamed(String path) {
+        if (currentPath.equals(Path.of(path).getParent())) {
+            terminal.ls(token);
+        }
+    }
+
+
+    @Override
+    public void fileRemoved(String path) {
+        if (currentPath.equals(Path.of(path).getParent())) {
+            terminal.ls(token);
+        }
+    }
+
+
+    @Override
     public void error(String errorMessage) {
         Alert alert = new Alert(Alert.AlertType.ERROR, errorMessage, ButtonType.OK);
         alert.showAndWait();
@@ -307,5 +323,42 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
         terminal.copy(token, fileName, dst, fileName);
     }
 
+
+    /**
+     * Создать новый каталог в текущей директории.
+     * @param directoryName название создаваемого каталога
+     */
+    public void makeDirectory(String directoryName) {
+        terminal.makeDirectory(token, directoryName);
+    }
+
+
+    /**
+     * Обновить список файлов.
+     */
+    public void update() {
+        terminal.ls(token);
+    }
+
+
+    /**
+     * Удалить выбранный файл или каталог.
+     */
+    public void removeSelected() {
+        String fileName = filesTable.getSelectionModel().getSelectedItem().getName();
+        terminal.remove(token, fileName);
+    }
+
+
+    /**
+     * Переименовать выделенный файл или каталог.
+     * @param newName новое название файла или каталога
+     */
+    public void renameSelected(String newName) {
+        String fileName = filesTable.getSelectionModel().getSelectedItem().getName();
+        if (!fileName.equals(newName)) {
+            terminal.rename(token, fileName, newName);
+        }
+    }
 
 }

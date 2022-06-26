@@ -97,14 +97,28 @@ public interface FileSystemTerminalOutput {
 
 
     /**
-     * Скопировать файл из файловой системы терминала на локальную файловую систему
-     *
-     * @param token               токен сессии
-     * @param sourcePath          путь к файлу в файловой системе терминала (источник)
-     * @param destinationPath     полный путь к файлу локальной файловой системы (приёмник)
-     * @param destinationTerminal терминал в который производится копирование файла
+     * Создать новый каталог в текущей директории.
+     * @param token токен сессии
+     * @param directoryName название новой директории
      */
-    //void get(FileSystemTerminalToken token, String sourcePath, String destinationPath, FileSystemTerminalInput destinationTerminal);
+    void makeDirectory(FileSystemTerminalToken token, String directoryName);
+
+
+    /**
+     * Удалить файл или каталог в текущей директории.
+     * @param token токен сессии
+     * @param fileName название удаляемого файла или директории
+     */
+    void remove(FileSystemTerminalToken token, String fileName);
+
+
+    /**
+     * Переименовать файл или каталог в текущей директории.
+     * @param token токен сессии
+     * @param fileName название переименовываемого файла или каталога
+     * @param newFileName новое название файла или каталога
+     */
+    void rename(FileSystemTerminalToken token, String fileName, String newFileName);
 
 
     /**

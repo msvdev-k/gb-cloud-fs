@@ -31,8 +31,8 @@ public class ServerConfiguration {
 
         port = 8189;
 
-        //root = Path.of(System.getProperty("user.home"));
-        root = Path.of("B:/");
+        root = Path.of(System.getProperty("user.home"));
+        //root = Path.of("B:/");
 
     }
 

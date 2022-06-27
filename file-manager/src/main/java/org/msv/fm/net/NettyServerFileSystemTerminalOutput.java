@@ -234,6 +234,69 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
     }
 
 
+    @Override
+    public void makeDirectory(FileSystemTerminalToken token, String directoryName) {
+        if (sessions.containsKey(token.toString())) {
+            NettyServerFileSystemTerminalSession session = sessions.get(token.toString());
+
+            if (network.isStart() && authFlag) {
+                int requestID = session.getRequestID();
+                AbstractRequest request = new MakeDirectory(requestID, session.getToken(), directoryName);
+                session.putRequest(requestID, request, null);
+
+                network.write(request);
+
+            } else {
+                session.getOutput().connectionState(false);
+            }
+        } else {
+            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+        }
+    }
+
+
+    @Override
+    public void remove(FileSystemTerminalToken token, String fileName) {
+        if (sessions.containsKey(token.toString())) {
+            NettyServerFileSystemTerminalSession session = sessions.get(token.toString());
+
+            if (network.isStart() && authFlag) {
+                int requestID = session.getRequestID();
+                AbstractRequest request = new Remove(requestID, session.getToken(), fileName);
+                session.putRequest(requestID, request, null);
+
+                network.write(request);
+
+            } else {
+                session.getOutput().connectionState(false);
+            }
+        } else {
+            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+        }
+    }
+
+
+    @Override
+    public void rename(FileSystemTerminalToken token, String fileName, String newFileName) {
+        if (sessions.containsKey(token.toString())) {
+            NettyServerFileSystemTerminalSession session = sessions.get(token.toString());
+
+            if (network.isStart() && authFlag) {
+                int requestID = session.getRequestID();
+                AbstractRequest request = new Rename(requestID, session.getToken(), fileName, newFileName);
+                session.putRequest(requestID, request, null);
+
+                network.write(request);
+
+            } else {
+                session.getOutput().connectionState(false);
+            }
+        } else {
+            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+        }
+    }
+
+
     /**
      * Метод получающий сообщения от сервера
      *
@@ -319,6 +382,32 @@ public class NettyServerFileSystemTerminalOutput implements FileSystemTerminalOu
             session.getOutput().fileAdded(
                     Path.of(response.getDirectoryPath())
                         .resolve(response.getFileDescription().getName()).toString());
+            session.removeRequest(requestID);
+        }
+
+
+
+
+        // === FileRemoved (удаление файла или каталога) ===
+
+        else if (abstractResponse instanceof FileRemoved response) {
+
+            session.getOutput().fileAdded(
+                    Path.of(response.getDirectoryPath())
+                            .resolve(response.getFileDescription().getName()).toString());
+            session.removeRequest(requestID);
+        }
+
+
+
+
+        // === FileRenamed (переименование файла или каталога) ===
+
+        else if (abstractResponse instanceof FileRenamed response) {
+
+            session.getOutput().fileAdded(
+                    Path.of(response.getDirectoryPath())
+                            .resolve(response.getFileDescription().getName()).toString());
             session.removeRequest(requestID);
         }
 

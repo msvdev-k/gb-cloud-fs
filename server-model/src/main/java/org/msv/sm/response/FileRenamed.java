@@ -10,12 +10,14 @@ import org.msv.sm.request.AbstractRequest;
  */
 public class FileRenamed extends AbstractResponse {
 
+    private final String directoryPath;
     private final String oldName;
     private final RemoteFileDescription fileDescription;
 
 
-    public FileRenamed(AbstractRequest request, String oldName, RemoteFileDescription fileDescription) {
+    public FileRenamed(AbstractRequest request, String directoryPath, String oldName, RemoteFileDescription fileDescription) {
         super(request);
+        this.directoryPath = directoryPath;
         this.oldName = oldName;
         this.fileDescription = fileDescription;
     }
@@ -33,5 +35,13 @@ public class FileRenamed extends AbstractResponse {
      */
     public RemoteFileDescription getFileDescription() {
         return fileDescription;
+    }
+
+
+    /**
+     * Путь к директории в которой был переименован файл.
+     */
+    public String getDirectoryPath() {
+        return directoryPath;
     }
 }

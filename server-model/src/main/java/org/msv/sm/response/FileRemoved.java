@@ -10,11 +10,13 @@ import org.msv.sm.request.AbstractRequest;
  */
 public class FileRemoved extends AbstractResponse {
 
+    private final String directoryPath;
     private final RemoteFileDescription fileDescription;
 
 
-    public FileRemoved(AbstractRequest request, RemoteFileDescription fileDescription) {
+    public FileRemoved(AbstractRequest request, String directoryPath, RemoteFileDescription fileDescription) {
         super(request);
+        this.directoryPath = directoryPath;
         this.fileDescription = fileDescription;
     }
 
@@ -25,4 +27,11 @@ public class FileRemoved extends AbstractResponse {
         return fileDescription;
     }
 
+
+    /**
+     * Путь к директории в которой был удалён файл.
+     */
+    public String getDirectoryPath() {
+        return directoryPath;
+    }
 }

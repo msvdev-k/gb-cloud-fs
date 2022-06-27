@@ -185,27 +185,91 @@ public class JVMFileSystemTerminalOutput implements FileSystemTerminalOutput {
     }
 
 
-    //    @Override
-//    public void get(FileSystemTerminalToken token, String sourcePath, String destinationPath, FileSystemTerminalInput destinationTerminal) {
-//        throw new RuntimeException("Метод JVMFileSystemTerminalOutput::get не реализован");
-//    }
+    @Override
+    public void makeDirectory(FileSystemTerminalToken token, String directoryName) {
+
+        if (!sessions.containsKey(token)) {
+            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+        }
+
+        Session session = sessions.get(token);
+
+        Path directoryPath = Path.of(directoryName).normalize();
+
+        if (directoryPath.getRoot() == null) {
+            directoryPath = session.currentDir.resolve(directoryName).normalize();
+        }
+
+        if (directoryPath.startsWith(session.currentDir) &&
+                !Files.exists(directoryPath)) {
+
+            try {
+                Files.createDirectory(directoryPath);
+                session.output.fileAdded(directoryPath.toString());
+
+            } catch (IOException e) {
+                session.output.error("Ошибка добавления директории");
+            }
+        }
+    }
 
 
-//    /**
-//     * Получить текущую корневую директорию
-//     *
-//     * @param token токен сессии
-//     */
-//    @Override
-//    public void root(FileSystemTerminalToken token) {
-//
-//        if (!sessions.containsKey(token)) {
-//            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
-//        }
-//
-//        Session session = sessions.get(token);
-//        session.output.root(Paths.get(session.root.toUri()));
-//    }
+    @Override
+    public void remove(FileSystemTerminalToken token, String fileName) {
+
+        if (!sessions.containsKey(token)) {
+            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+        }
+
+        Session session = sessions.get(token);
+
+        Path filePath = Path.of(fileName).normalize();
+
+        if (filePath.getRoot() == null) {
+            filePath = session.currentDir.resolve(fileName).normalize();
+        }
+
+        if (filePath.startsWith(session.currentDir)) {
+
+            try {
+                Files.delete(filePath);
+                session.output.fileRemoved(filePath.toString());
+
+            } catch (IOException e) {
+                session.output.error("Ошибка удаления файла");
+            }
+        }
+    }
+
+
+    @Override
+    public void rename(FileSystemTerminalToken token, String fileName, String newFileName) {
+
+        if (!sessions.containsKey(token)) {
+            throw new RuntimeException("Запись о FileSystemTerminalToken отсутствует в файловом терминале.");
+        }
+
+        Session session = sessions.get(token);
+
+        Path filePath = Path.of(fileName).normalize();
+
+        if (filePath.getRoot() == null) {
+            filePath = session.currentDir.resolve(fileName).normalize();
+        }
+
+        Path targetPath = filePath.resolveSibling(newFileName);
+
+        if (filePath.startsWith(session.currentDir) && targetPath.startsWith(session.currentDir)) {
+
+            try {
+                Files.move(filePath, targetPath);
+                session.output.fileRenamed(targetPath.toString());
+
+            } catch (IOException e) {
+                session.output.error("Ошибка переименования файла");
+            }
+        }
+    }
 
 
     /**

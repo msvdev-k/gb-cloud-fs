@@ -231,6 +231,15 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
 
 
     /**
+     * Контроллер находится в фокусе.
+     * @return true - в фокусе, false - нет
+     */
+    public boolean isFocused() {
+        return filesTable.isFocused();
+    }
+
+
+    /**
      * Выбранный пользователем файл
      *
      * @return имя файла, либо null

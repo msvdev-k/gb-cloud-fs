@@ -119,7 +119,7 @@ public class FileServerInboundHandler extends SimpleChannelInboundHandler<Server
             RemoteFileDescription description = session.remove(request.getFileName());
 
             if (description != null) {
-                ctx.writeAndFlush(new FileRemoved(abstractRequest, description));
+                ctx.writeAndFlush(new FileRemoved(abstractRequest, session.getCurrentDirectory(), description));
 
             } else {
                 ctx.writeAndFlush(new RemoveError(abstractRequest, "Deletion error"));
@@ -134,7 +134,7 @@ public class FileServerInboundHandler extends SimpleChannelInboundHandler<Server
             RemoteFileDescription description = session.rename(request.getName(), request.getNewName());
 
             if (description != null) {
-                ctx.writeAndFlush(new FileRenamed(abstractRequest, request.getName(), description));
+                ctx.writeAndFlush(new FileRenamed(abstractRequest, session.getCurrentDirectory(), request.getName(), description));
 
             } else {
                 ctx.writeAndFlush(new RenameError(abstractRequest, "Renaming error"));

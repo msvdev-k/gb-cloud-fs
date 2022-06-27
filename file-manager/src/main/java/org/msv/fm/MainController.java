@@ -138,8 +138,16 @@ public class MainController implements Initializable {
      * Действие подключения к удалённому серверу.
      */
     public void btmServerConnectionAction(ActionEvent actionEvent) {
-        System.out.println("Метод btmServerConnectionAction() - " + Thread.currentThread().getName());
+
+
+
+
         NSTerminal.connect("user1", "pass1", null);
+
+
+
+
+
     }
 
 
@@ -161,10 +169,10 @@ public class MainController implements Initializable {
 
         FilePanelController selectedController;
 
-        if (leftPC.isSelectedFile()) {
+        if (leftPC.isFocused()) {
             selectedController = leftPC;
 
-        } else if (rightPC.isSelectedFile()) {
+        } else if (rightPC.isFocused()) {
             selectedController = rightPC;
 
         } else {

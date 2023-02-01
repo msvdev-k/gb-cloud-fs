@@ -101,12 +101,22 @@ public class MainController implements Initializable {
 
 
     public void copyBtnAction(ActionEvent actionEvent) {
-        FilePanelController filesPC = (FilePanelController) leftFilesTable.getProperties().get("ctrl");
-//        ServerFilePanelController serverPC = (ServerFilePanelController) rightFilesTable.getProperties().get("ctrl");
 
-//        FilePanelController serverPC = (FilePanelController) filesTableServer.getProperties().get("ctrl");
+        FilePanelController leftPC = (FilePanelController) leftFilesTable.getProperties().get("ctrl");
+        FilePanelController rightPC = (FilePanelController) rightFilesTable.getProperties().get("ctrl");
 
-        if (filesPC.getSelectedFileName() == null) {
+        // Сортировка источника и приёмника
+        FilePanelController srcPC, dstPC;
+
+        if (leftPC.getSelectedFileName() != null) {
+            srcPC = leftPC;
+            dstPC = rightPC;
+
+        } else if (rightPC.getSelectedFileName() != null) {
+            srcPC = rightPC;
+            dstPC = leftPC;
+
+        } else {
             Alert alert = new Alert(Alert.AlertType.WARNING,
                     "Перед копирование необходимо выбрать файл",
                     ButtonType.OK);
@@ -114,23 +124,34 @@ public class MainController implements Initializable {
             return;
         }
 
-//        FilePanelController srcPC, dstPC;
-//
-//        if (filesPC.getSelectedFileName() != null) {
-//            srcPC = filesPC;
-//            dstPC = serverPC;
-//        } else if (serverPC.getSelectedFileName() != null) {
-//            srcPC = serverPC;
-//            dstPC = filesPC;
-//        } else {
-//            Alert alert = new Alert(Alert.AlertType.WARNING,
-//                    "Перед копирование необходимо выбрать файл",
-//                    ButtonType.OK);
-//            alert.showAndWait();
-//            return;
-//        }
 
-        Path srcPath = Paths.get(filesPC.getCurrentPath().toString(), filesPC.getSelectedFileName());
+        if (srcPC.getTerminal() == JVMTerminal) {
+            // Источник - локальная файловая система
+
+            // Приёмник - любая другая файловая система
+            Path src = srcPC.getCurrentPath().resolve(srcPC.getSelectedFileName());
+            dstPC.copy(src);
+        }
+
+        else if (srcPC.getTerminal() == NSTerminal) {
+            // Источник - удалённая файловая система сервера на Netty
+
+            if (dstPC.getTerminal() == JVMTerminal) {
+                // Приёмник - локальная файловая система
+
+                srcPC.copyTo(dstPC);
+            }
+            else {
+                Alert alert = new Alert(Alert.AlertType.WARNING,
+                        "Между удалёнными файловыми системами копирование файлов запрещено!",
+                        ButtonType.OK);
+                alert.showAndWait();
+                return;
+            }
+        }
+
+
+//        Path srcPath = Paths.get(filesPC.getCurrentPath().toString(), filesPC.getSelectedFileName());
 //        Path dstPath = Paths.get(dstPC.getCurrentPath()).resolve(srcPath.getFileName().toString());
 
 

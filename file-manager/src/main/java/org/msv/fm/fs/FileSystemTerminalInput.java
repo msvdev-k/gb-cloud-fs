@@ -35,6 +35,15 @@ public interface FileSystemTerminalInput {
 
 
     /**
+     * В терминал добавлен файл
+     * @param path путь к добавленному файлу (в файловой системе терминала)
+     */
+    void addFile(Path path);
+
+
+
+
+    /**
      * Сообщение об ошибке
      *
      * @param errorMessage описание ошибки

@@ -16,6 +16,10 @@
         <Menu text="Файл">
             <MenuItem text="Выход" onAction="#btmExitAction"/>
         </Menu>
+        <Menu text="Сервер">
+            <MenuItem text="Подключиться" onAction="#btmServerConnectionAction"/>
+            <MenuItem text="Отключить" onAction="#btmServerCloseConnectionAction"/>
+        </Menu>
     </MenuBar>
 
 
@@ -28,8 +32,14 @@
     <HBox spacing="5.0">
         <Button maxWidth="Infinity" focusTraversable="false" text="Копировать файл" HBox.hgrow="ALWAYS"
                 onAction="#copyBtnAction"/>
-        <Button maxWidth="Infinity" focusTraversable="false" text="Переместить файл" HBox.hgrow="ALWAYS"/>
-        <Button maxWidth="Infinity" focusTraversable="false" text="Удалить файл" HBox.hgrow="ALWAYS"/>
+        <Button maxWidth="Infinity" focusTraversable="false" text="Создать директорию" HBox.hgrow="ALWAYS"
+                onAction="#makeDirectoryBtnAction"/>
+        <Button maxWidth="Infinity" focusTraversable="false" text="Переименовать" HBox.hgrow="ALWAYS"
+                onAction="#renameBtnAction"/>
+        <Button maxWidth="Infinity" focusTraversable="false" text="Удалить файл" HBox.hgrow="ALWAYS"
+                onAction="#removeBtnAction"/>
+        <Button maxWidth="Infinity" focusTraversable="false" text="Обновить" HBox.hgrow="ALWAYS"
+                onAction="#updateBtnAction"/>
         <Button maxWidth="Infinity" focusTraversable="false" text="Выход из программы" HBox.hgrow="ALWAYS"
                 onAction="#btmExitAction"/>
 

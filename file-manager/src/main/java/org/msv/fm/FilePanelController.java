@@ -39,20 +39,8 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
 
 
     /**
-     * Привязка терминала файловой системы к контроллеру
-     *
-     * @param terminal терминал файловой системы
+     * Инициализация контроллера.
      */
-    public void setFileSystemTerminal(FileSystemTerminalOutput terminal) {
-        if (this.terminal != null) {
-            this.terminal.stopSession(token);
-        }
-
-        this.terminal = terminal;
-        this.token = terminal.startSession(this);
-    }
-
-
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
 
@@ -115,7 +103,37 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
 
         // Обработка кликов мыши
         filesTable.setOnMouseClicked(this::onMouseClicked);
+    }
 
+
+    /**
+     * Очистить представление контроллера.
+     */
+    private void clear() {
+        filesTable.getItems().clear();
+        pathField.clear();
+    }
+
+
+    @Override
+    public void connectionState(boolean state) {
+
+        if (state) {
+            selectDiskAction(null);
+
+        } else {
+            clear();
+            error("Необходимо подключиться к удалённому серверу");
+        }
+    }
+
+
+    @Override
+    public void sessionState(FileSystemTerminalToken token, boolean state) {
+        if (state && this.token == null) {
+            this.token = token;
+            terminal.cd(token, getDisk().getRoot());
+        }
     }
 
 
@@ -143,7 +161,7 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
 
 
     /**
-     * Обновить список доступных локаций файловых систем
+     * Обновить список доступных локаций файловых систем.
      *
      * @param list список доступных локаций
      */
@@ -153,11 +171,19 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
     }
 
 
+    /**
+     * Установить текущую локацию файловых систем.
+     *
+     * @param disk файловая локация
+     */
     public void setDisk(FileSystemLocation disk) {
         disksBox.getSelectionModel().select(disk);
     }
 
 
+    /**
+     * Получить текущую файловую локацию.
+     */
     public FileSystemLocation getDisk() {
         return disksBox.getSelectionModel().getSelectedItem();
     }
@@ -169,9 +195,18 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
      * @param actionEvent событие
      */
     public void selectDiskAction(ActionEvent actionEvent) {
+
         FileSystemLocation location = disksBox.getSelectionModel().getSelectedItem();
-        setFileSystemTerminal(location.getTerminal());
-        terminal.cd(token, location.getRoot());
+
+        clear();
+
+        if (this.terminal != null && this.token != null) {
+            this.terminal.stopSession(token);
+        }
+
+        this.terminal = location.getTerminal();
+        this.token = null;
+        terminal.startSession(this, location);
     }
 
 
@@ -182,6 +217,25 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
      */
     public void btnPathUpAction(ActionEvent actionEvent) {
         terminal.cd(token, "..");
+    }
+
+
+    /**
+     * В контроллере выбран файл.
+     *
+     * @return true - выбран файл, false - файл не выбран.
+     */
+    public boolean isSelectedFile() {
+        return filesTable.isFocused() && filesTable.getSelectionModel().getSelectedItem() != null;
+    }
+
+
+    /**
+     * Контроллер находится в фокусе.
+     * @return true - в фокусе, false - нет
+     */
+    public boolean isFocused() {
+        return filesTable.isFocused();
     }
 
 
@@ -208,75 +262,46 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
     }
 
 
-    /**
-     * Установить новый абсолютный путь к текущему каталогу
-     *
-     * @param path путь
-     */
     @Override
-    public void path(Path path) {
-        this.currentPath = path;
-        pathField.setText(path.toString());
-        terminal.ls(token, path.toString());
+    public void workingDirectory(String path) {
+        this.currentPath = Path.of(path);
+        pathField.setText(path);
+        terminal.ls(token);
     }
 
 
-    /**
-     * Установить текущую корневую директорию (для файловых систем с несколькими корневыми директориями)
-     * Метод не реализован
-     *
-     * @param root корневая директория
-     */
     @Override
-    public void root(Path root) {
-
-    }
-
-    /**
-     * Текущай файловый терминал
-     * @return
-     */
-    public FileSystemTerminalOutput getTerminal() {
-        return terminal;
+    public void listOfFiles(List<FileInfo> fileInfoList) {
+        filesTable.getItems().clear();
+        filesTable.getItems().addAll(fileInfoList);
+        filesTable.sort();
     }
 
 
-    /**
-     * Обновить список файлов
-     *
-     * @param fileInfoList список файлов
-     * @param path         абсолютный путь к каталогу из которого собирается список
-     */
     @Override
-    public void fileList(List<FileInfo> fileInfoList, Path path) {
-        if (currentPath.equals(path)) {
-            filesTable.getItems().clear();
-            filesTable.getItems().addAll(fileInfoList);
-            filesTable.sort();
+    public void fileAdded(String path) {
+        if (currentPath.equals(Path.of(path).getParent())) {
+            terminal.ls(token);
         }
     }
 
 
-    /**
-     * В терминал добавлен файл
-     *
-     * @param path путь к добавленному файлу
-     */
     @Override
-    public void addFile(Path path) {
-        if (path.startsWith(currentPath) &&
-            path.getNameCount()-1 == currentPath.getNameCount()) {
-            // Файл добавлен к текущему каталогу, обновляем список файлов
-            terminal.ls(token, currentPath.toString());
+    public void fileRenamed(String path) {
+        if (currentPath.equals(Path.of(path).getParent())) {
+            terminal.ls(token);
         }
     }
 
 
-    /**
-     * Сообщение об ошибке
-     *
-     * @param errorMessage описание ошибки
-     */
+    @Override
+    public void fileRemoved(String path) {
+        if (currentPath.equals(Path.of(path).getParent())) {
+            terminal.ls(token);
+        }
+    }
+
+
     @Override
     public void error(String errorMessage) {
         Alert alert = new Alert(Alert.AlertType.ERROR, errorMessage, ButtonType.OK);
@@ -284,11 +309,6 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
     }
 
 
-    /**
-     * Обычное сообщение
-     *
-     * @param infoMessage сообщение от файловой системы
-     */
     @Override
     public void info(String infoMessage) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION, infoMessage, ButtonType.OK);
@@ -296,26 +316,58 @@ public class FilePanelController implements Initializable, FileSystemTerminalInp
     }
 
 
-    /**
-     * Скопировать файл в текущую директорию терминала
-     * @param src Путь к копируемому файлу на локальной файловой системе
-     */
-    public void copy(Path src) {
-        terminal.put(token, src.toString(), src.getFileName().toString());
+    @Override
+    public void putFile(String sourcePath, String destinationPath) {
+        terminal.put(token, sourcePath, destinationPath);
     }
 
 
     /**
-     * Скопировать файл в текущую директорию терминала
-     * @param dist Контроллер локальной файловой системы в который производится копирование файла
+     * Скопировать файл из текущего контроллера в контроллер приёмник.
+     *
+     * @param dst контроллер, принимающий файл
      */
-    public void copyTo(FilePanelController dist) {
-        String fileName = this.filesTable.getSelectionModel().getSelectedItem().getName();
-        Path distFileName = dist.getCurrentPath().resolve(fileName);
-
-        terminal.get(token, fileName, distFileName.toString(), dist);
+    public void copy(FileSystemTerminalInput dst) {
+        String fileName = filesTable.getSelectionModel().getSelectedItem().getName();
+        terminal.copy(token, fileName, dst, fileName);
     }
 
 
+    /**
+     * Создать новый каталог в текущей директории.
+     * @param directoryName название создаваемого каталога
+     */
+    public void makeDirectory(String directoryName) {
+        terminal.makeDirectory(token, directoryName);
+    }
+
+
+    /**
+     * Обновить список файлов.
+     */
+    public void update() {
+        terminal.ls(token);
+    }
+
+
+    /**
+     * Удалить выбранный файл или каталог.
+     */
+    public void removeSelected() {
+        String fileName = filesTable.getSelectionModel().getSelectedItem().getName();
+        terminal.remove(token, fileName);
+    }
+
+
+    /**
+     * Переименовать выделенный файл или каталог.
+     * @param newName новое название файла или каталога
+     */
+    public void renameSelected(String newName) {
+        String fileName = filesTable.getSelectionModel().getSelectedItem().getName();
+        if (!fileName.equals(newName)) {
+            terminal.rename(token, fileName, newName);
+        }
+    }
 
 }

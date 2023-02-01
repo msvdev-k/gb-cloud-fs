@@ -2,7 +2,9 @@ package org.msv.fm.net;
 
 import io.netty.handler.codec.serialization.ObjectDecoderInputStream;
 import io.netty.handler.codec.serialization.ObjectEncoderOutputStream;
-import org.msv.sm.ServerMessage;
+import org.msv.sm.request.AbstractRequest;
+import org.msv.sm.response.AbstractResponse;
+import org.msv.sm.response.error.Error;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -14,21 +16,25 @@ import java.util.function.Consumer;
  */
 public class Network {
 
+    private Socket socket;
     private ObjectDecoderInputStream in;
     private ObjectEncoderOutputStream out;
 
-    String host;
-    int port;
+    private final String host;
+    private final int port;
 
     // Поток для приёма сообщений от сервера
-    Thread readThread;
-    boolean startFlag = false;
+    private Thread readThread;
+    private boolean startFlag = false;
 
     // Функция принимающая сообщение от сервера
-    Consumer<ServerMessage> readConsumer;
+    private Consumer<AbstractResponse> responseConsumer;
+
+    // Функция принимающая сообщение об ошибке от сервера
+    private Consumer<Error> errorResponseConsumer;
 
     // Функция принимающая сообщение об ошибке (для информирования пользователя)
-    Consumer<String> errorConsumer;
+    private Consumer<String> errorConsumer;
 
 
     public Network(String host, int port) {
@@ -46,7 +52,7 @@ public class Network {
         if (startFlag) return;
 
         try {
-            Socket socket = new Socket(host, port);
+            socket = new Socket(host, port);
             in = new ObjectDecoderInputStream(socket.getInputStream());
             out = new ObjectEncoderOutputStream(socket.getOutputStream());
 
@@ -86,51 +92,71 @@ public class Network {
 
                 Object object = in.readObject();
 
-                if (object instanceof ServerMessage serverMessage) {
-                    if (readConsumer != null) {
-                        readConsumer.accept(serverMessage);
+                if (object instanceof Error error) {
+                    if (errorResponseConsumer != null) {
+                        errorResponseConsumer.accept(error);
                     }
-                }
-                else {
+
+                } else if (object instanceof AbstractResponse response) {
+                    if (responseConsumer != null) {
+                        responseConsumer.accept(response);
+                    }
+
+                } else {
                     if (errorConsumer != null) {
-                        errorConsumer.accept("Server message error");
+                        errorConsumer.accept("Server response error");
                     }
                 }
             }
-
-            readThread = null;
 
         } catch (Exception e) {
 
             if (e instanceof InterruptedException) {
-                System.err.println("Connection stop");
-            }
-            else {
+                System.out.println("Connection stop");
+            } else {
                 if (errorConsumer != null) {
                     errorConsumer.accept("Connection lost");
                 }
-                System.err.println("Connection lost");
+                System.out.println("Connection lost");
             }
+            e.printStackTrace();
+            System.out.println(e);
+
+        } finally {
 
             startFlag = false;
             readThread = null;
+
+            try {
+                in.close();
+                out.close();
+                socket.close();
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
 
-
     /**
      * Установка функции, принимающей сообщения от сервера
-     * @param readConsumer
      */
-    public void setReadConsumer(Consumer<ServerMessage> readConsumer) {
-        this.readConsumer = readConsumer;
+    public void setResponseConsumer(Consumer<AbstractResponse> responseConsumer) {
+        this.responseConsumer = responseConsumer;
+    }
+
+
+    /**
+     * Установить функцию, принимающую сообщения об ошибках со стороны сервера
+     */
+    public void setErrorResponseConsumer(Consumer<Error> errorResponseConsumer) {
+        this.errorResponseConsumer = errorResponseConsumer;
     }
 
 
     /**
      * Установка функции, принимающей сообщение об ошибке
-     * @param errorConsumer
      */
     public void setErrorConsumer(Consumer<String> errorConsumer) {
         this.errorConsumer = errorConsumer;
@@ -139,11 +165,12 @@ public class Network {
 
     /**
      * Отправить сообщение на сторону сервера
-     * @param message
+     *
+     * @param request отправляемое сообщение
      */
-    public void write(ServerMessage message) {
+    public void write(AbstractRequest request) {
         try {
-            out.writeObject(message);
+            out.writeObject(request);
             out.flush();
 
         } catch (IOException e) {
@@ -156,8 +183,9 @@ public class Network {
 
 
     /**
-     * Соединение запущено
-     * @return
+     * Состояние потока чтения сообщений от сервера
+     *
+     * @return true - сообщения от сервера читаются, false - чтение закончено
      */
     public boolean isStart() {
         return startFlag;

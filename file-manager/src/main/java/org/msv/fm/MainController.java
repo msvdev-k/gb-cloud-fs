@@ -6,17 +6,16 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.VBox;
 import org.msv.fm.fs.FileSystemLocation;
 import org.msv.fm.fs.jvm.JVMFileSystemTerminalOutput;
 import org.msv.fm.net.NettyServerFileSystemTerminalOutput;
 
 import java.net.URL;
-import java.nio.file.FileSystems;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 
@@ -27,9 +26,6 @@ public class MainController implements Initializable {
 
     private static final String HOST = "localhost";
     private static final int PORT = 8189;
-
-    private static final String DEFAULT_ROOT = FileSystems.getDefault().getRootDirectories().iterator().next().toString();
-    private static final String CLOUD_ROOT = "Cloud:" + FileSystems.getDefault().getSeparator();
 
     @FXML
     public VBox leftFilesTable;
@@ -50,19 +46,20 @@ public class MainController implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
 
+        NSTerminal.setErrorListener(this::alertError);
+
         ///////////////////////////////////////////////////
         // Настройка списка доступных файловых систем (локаций)
         ///////////////////////////////////////////////////
 
         List<FileSystemLocation> locations = new ArrayList<>();
 
-        List<Path> jvmRoots = JVMTerminal.roots();
+        List<String> jvmRoots = JVMTerminal.roots();
         jvmRoots.stream()
-                .map(p -> new FileSystemLocation(p.toString(), p.toString(), JVMTerminal))
+                .map(p -> new FileSystemLocation(p, p, JVMTerminal))
                 .forEach(locations::add);
 
-        locations.add(new FileSystemLocation("Cloud", "", NSTerminal));
-
+        locations.add(new FileSystemLocation("Cloud", "~", NSTerminal));
 
         ///////////////////////////////////////////////////
         // Настройка файловых панелей
@@ -84,22 +81,30 @@ public class MainController implements Initializable {
     }
 
 
-
-
+    /**
+     * Вывод диалогового окна сообщения об ошибке.
+     * @param errorMessage сообщение об ошибке
+     */
     private void alertError(String errorMessage) {
-        Alert alert = new Alert(Alert.AlertType.ERROR, errorMessage, ButtonType.OK);
-        alert.showAndWait();
+        Platform.runLater(()->{
+            Alert alert = new Alert(Alert.AlertType.ERROR, errorMessage, ButtonType.OK);
+            alert.showAndWait();
+        });
     }
 
 
-
-
+    /**
+     * Действие завершения работы приложения.
+     */
     public void btmExitAction(ActionEvent actionEvent) {
         Platform.exit();
     }
 
 
 
+    /**
+     * Действие копирования файла между терминалами.
+     */
     public void copyBtnAction(ActionEvent actionEvent) {
 
         FilePanelController leftPC = (FilePanelController) leftFilesTable.getProperties().get("ctrl");
@@ -108,11 +113,11 @@ public class MainController implements Initializable {
         // Сортировка источника и приёмника
         FilePanelController srcPC, dstPC;
 
-        if (leftPC.getSelectedFileName() != null) {
+        if (leftPC.isSelectedFile()) {
             srcPC = leftPC;
             dstPC = rightPC;
 
-        } else if (rightPC.getSelectedFileName() != null) {
+        } else if (rightPC.isSelectedFile()) {
             srcPC = rightPC;
             dstPC = leftPC;
 
@@ -124,49 +129,152 @@ public class MainController implements Initializable {
             return;
         }
 
-
-        if (srcPC.getTerminal() == JVMTerminal) {
-            // Источник - локальная файловая система
-
-            // Приёмник - любая другая файловая система
-            Path src = srcPC.getCurrentPath().resolve(srcPC.getSelectedFileName());
-            dstPC.copy(src);
-        }
-
-        else if (srcPC.getTerminal() == NSTerminal) {
-            // Источник - удалённая файловая система сервера на Netty
-
-            if (dstPC.getTerminal() == JVMTerminal) {
-                // Приёмник - локальная файловая система
-
-                srcPC.copyTo(dstPC);
-            }
-            else {
-                Alert alert = new Alert(Alert.AlertType.WARNING,
-                        "Между удалёнными файловыми системами копирование файлов запрещено!",
-                        ButtonType.OK);
-                alert.showAndWait();
-                return;
-            }
-        }
+        // Копирование от источника к приёмнику
+        srcPC.copy(dstPC);
+    }
 
 
-//        Path srcPath = Paths.get(filesPC.getCurrentPath().toString(), filesPC.getSelectedFileName());
-//        Path dstPath = Paths.get(dstPC.getCurrentPath()).resolve(srcPath.getFileName().toString());
+    /**
+     * Действие подключения к удалённому серверу.
+     */
+    public void btmServerConnectionAction(ActionEvent actionEvent) {
 
 
-//        try {
-////            serverPC.upload(srcPath);
-//
-////            Files.copy(srcPath, dstPath);
-////            dstPC.updateList(Paths.get(dstPC.getCurrentPath()));
-////
-//        } catch (IOException e) {
-//            Alert alert = new Alert(Alert.AlertType.WARNING,
-//                    "Не удалось скопировать указанный файл",
-//                    ButtonType.OK);
-//            alert.showAndWait();
-//        }
+
+
+        NSTerminal.connect("user1", "pass1", null);
+
+
+
+
 
     }
+
+
+    /**
+     * Действие на разрыв соединения с удалённым сервером.
+     */
+    public void btmServerCloseConnectionAction(ActionEvent actionEvent) {
+        NSTerminal.closeConnection();
+    }
+
+
+    /**
+     * Действие на создание новой директории.
+     */
+    public void makeDirectoryBtnAction(ActionEvent actionEvent) {
+
+        FilePanelController leftPC = (FilePanelController) leftFilesTable.getProperties().get("ctrl");
+        FilePanelController rightPC = (FilePanelController) rightFilesTable.getProperties().get("ctrl");
+
+        FilePanelController selectedController;
+
+        if (leftPC.isFocused()) {
+            selectedController = leftPC;
+
+        } else if (rightPC.isFocused()) {
+            selectedController = rightPC;
+
+        } else {
+            Alert alert = new Alert(Alert.AlertType.WARNING,
+                    "Перед создание каталога необходимо выбрать файловую панель",
+                    ButtonType.OK);
+            alert.showAndWait();
+            return;
+        }
+
+        TextInputDialog inputDialog = new TextInputDialog();
+        inputDialog.setTitle("Добавление нового каталога");
+        inputDialog.setHeaderText("Введите название создаваемого каталога");
+
+        Optional<String> result = inputDialog.showAndWait();
+        if (result.isPresent()) {
+             String dirName = result.get();
+             selectedController.makeDirectory(dirName);
+        }
+    }
+
+
+    /**
+     * Действие на удаление файла или каталога.
+     */
+    public void removeBtnAction(ActionEvent actionEvent) {
+
+        FilePanelController leftPC = (FilePanelController) leftFilesTable.getProperties().get("ctrl");
+        FilePanelController rightPC = (FilePanelController) rightFilesTable.getProperties().get("ctrl");
+
+        FilePanelController selectedController;
+
+        if (leftPC.isSelectedFile()) {
+            selectedController = leftPC;
+
+        } else if (rightPC.isSelectedFile()) {
+            selectedController = rightPC;
+
+        } else {
+            Alert alert = new Alert(Alert.AlertType.WARNING,
+                    "Перед создание каталога необходимо выбрать файловую панель",
+                    ButtonType.OK);
+            alert.showAndWait();
+            return;
+        }
+
+        Alert dialog = new Alert(Alert.AlertType.WARNING,null,  ButtonType.OK, ButtonType.CANCEL);
+        dialog.setTitle("Подтверждение удаления файла");
+        dialog.setHeaderText("Вы действительно ходите удалить " + selectedController.getSelectedFileName() + " ?");
+        Optional<ButtonType> result = dialog.showAndWait();
+
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            selectedController.removeSelected();
+        }
+    }
+
+
+    /**
+     * Действие на обновление списка файлов.
+     */
+    public void updateBtnAction(ActionEvent actionEvent) {
+        FilePanelController leftPC = (FilePanelController) leftFilesTable.getProperties().get("ctrl");
+        FilePanelController rightPC = (FilePanelController) rightFilesTable.getProperties().get("ctrl");
+
+        leftPC.update();
+        rightPC.update();
+    }
+
+
+    /**
+     * Действие на переименование файла или каталога.
+     */
+    public void renameBtnAction(ActionEvent actionEvent) {
+
+        FilePanelController leftPC = (FilePanelController) leftFilesTable.getProperties().get("ctrl");
+        FilePanelController rightPC = (FilePanelController) rightFilesTable.getProperties().get("ctrl");
+
+        FilePanelController selectedController;
+
+        if (leftPC.isSelectedFile()) {
+            selectedController = leftPC;
+
+        } else if (rightPC.isSelectedFile()) {
+            selectedController = rightPC;
+
+        } else {
+            Alert alert = new Alert(Alert.AlertType.WARNING,
+                    "Перед создание каталога необходимо выбрать файловую панель",
+                    ButtonType.OK);
+            alert.showAndWait();
+            return;
+        }
+
+        TextInputDialog inputDialog = new TextInputDialog(selectedController.getSelectedFileName());
+        inputDialog.setTitle("Переименование файла");
+        inputDialog.setHeaderText("Введите новое название файла");
+
+        Optional<String> result = inputDialog.showAndWait();
+        if (result.isPresent()) {
+            String newName = result.get();
+            selectedController.renameSelected(newName);
+        }
+    }
+
 }

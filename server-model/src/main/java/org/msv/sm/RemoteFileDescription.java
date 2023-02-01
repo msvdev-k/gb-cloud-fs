@@ -37,6 +37,13 @@ public class RemoteFileDescription implements Serializable {
         this.lastModified = lastModified;
     }
 
+    /**
+     * true - директория, false - не директория.
+     */
+    public boolean isDirectory() {
+        return type == FileType.DIRECTORY;
+    }
+
 
     public String getName() {
         return name;

@@ -10,21 +10,12 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <groupId>org.msv.serverfs</groupId>
-    <artifactId>server-file-storage</artifactId>
+    <groupId>org.msv.servermodel</groupId>
+    <artifactId>server-model</artifactId>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
-
-    <dependencies>
-        <dependency>
-            <groupId>org.msv.servermodel</groupId>
-            <artifactId>server-model</artifactId>
-            <version>1.0-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-    </dependencies>
 
 </project>

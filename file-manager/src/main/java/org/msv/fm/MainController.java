@@ -3,15 +3,20 @@ package org.msv.fm;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import org.msv.fm.fs.FileSystemLocation;
 import org.msv.fm.fs.jvm.JVMFileSystemTerminalOutput;
 import org.msv.fm.net.NettyServerFileSystemTerminalOutput;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -83,10 +88,11 @@ public class MainController implements Initializable {
 
     /**
      * Вывод диалогового окна сообщения об ошибке.
+     *
      * @param errorMessage сообщение об ошибке
      */
     private void alertError(String errorMessage) {
-        Platform.runLater(()->{
+        Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.ERROR, errorMessage, ButtonType.OK);
             alert.showAndWait();
         });
@@ -99,7 +105,6 @@ public class MainController implements Initializable {
     public void btmExitAction(ActionEvent actionEvent) {
         Platform.exit();
     }
-
 
 
     /**
@@ -137,17 +142,24 @@ public class MainController implements Initializable {
     /**
      * Действие подключения к удалённому серверу.
      */
-    public void btmServerConnectionAction(ActionEvent actionEvent) {
+    public void btmServerConnectionAction(ActionEvent actionEvent) throws IOException {
+        FXMLLoader fxmlLoader = new FXMLLoader(FileManagerApplication.class.getResource("login-view.fxml"));
+        Scene scene = new Scene(fxmlLoader.load());
 
+        LoginController loginController = fxmlLoader.getController();
 
+        Stage dialog = new Stage();
+        dialog.initModality(Modality.WINDOW_MODAL);
+        dialog.setScene(scene);
+        loginController.setDialogStage(dialog);
+        dialog.showAndWait();
 
-
-        NSTerminal.connect("user1", "pass1", null);
-
-
-
-
-
+        if (loginController.isOk()) {
+            String login = loginController.getLogin();
+            String password = loginController.getPassword();
+            NSTerminal.connect(login, password, null);
+//            NSTerminal.connect("user1", "pass1", null);
+        }
     }
 
 
@@ -189,8 +201,8 @@ public class MainController implements Initializable {
 
         Optional<String> result = inputDialog.showAndWait();
         if (result.isPresent()) {
-             String dirName = result.get();
-             selectedController.makeDirectory(dirName);
+            String dirName = result.get();
+            selectedController.makeDirectory(dirName);
         }
     }
 
@@ -219,7 +231,7 @@ public class MainController implements Initializable {
             return;
         }
 
-        Alert dialog = new Alert(Alert.AlertType.WARNING,null,  ButtonType.OK, ButtonType.CANCEL);
+        Alert dialog = new Alert(Alert.AlertType.WARNING, null, ButtonType.OK, ButtonType.CANCEL);
         dialog.setTitle("Подтверждение удаления файла");
         dialog.setHeaderText("Вы действительно ходите удалить " + selectedController.getSelectedFileName() + " ?");
         Optional<ButtonType> result = dialog.showAndWait();
